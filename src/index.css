@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Barlow Condensed', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+    --color-rayven-charcoal: #1F2024;
+    --color-rayven-graphite: #2B2D31;
+    --color-rayven-purple: #6D35C8;
+    --color-rayven-purple-deep: #4B218A;
+    --color-rayven-purple-soft: #8B5AD9;
+    --color-rayven-purple-light: #F3EEFC;
+    --color-rayven-offwhite: #F7F7F5;
+    --color-rayven-marble: #F3F3F1;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #FFFFFF;
+    color: #1F2024;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F7F7F5;
+}
+::-webkit-scrollbar-thumb {
+  background: #D5D5DB;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6D35C8;
+}
+
+/* Subtle Sport Texture & Marble Grain */
+.bg-pitch-grid {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(31, 32, 36, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(31, 32, 36, 0.035) 1px, transparent 1px);
+}
+
+.bg-rayven-marble {
+  background-color: #F7F7F5;
+  background-image: 
+    radial-gradient(at 10% 20%, rgba(109, 53, 200, 0.03) 0px, transparent 50%),
+    radial-gradient(at 90% 80%, rgba(75, 33, 138, 0.03) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(31, 32, 36, 0.02) 0px, transparent 50%);
+}
+
+.bg-radial-purple-glow {
+  background: radial-gradient(circle at 50% 0%, rgba(109, 53, 200, 0.08) 0%, transparent 70%);
+}
+
+

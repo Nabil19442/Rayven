@@ -1,0 +1,6 @@
+{
+  "name": "RAYVEN - Premium Football Jersey & Sportswear",
+  "description": "RAYVEN is Bangladesh's premier football sportswear brand offering authentic player & fan edition jerseys, retro kits, custom prints, and fast delivery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
