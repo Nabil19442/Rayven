@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { db } from '../../lib/db';
 import { Product, JerseyVersion, KitType, JerseySize } from '../../types';
 import { useStore } from '../../contexts/StoreContext';
-import { uploadProductImage, validateImageFile, fileToDataUrl } from '../../lib/storage';
+import { uploadAppFile, deleteAppFile, validateImageFile } from '../../lib/storage';
 import { 
   ArrowLeft, Plus, Trash2, Save, Upload, Star, MoveLeft, MoveRight, 
   AlertCircle, CheckCircle2, Image as ImageIcon, Loader2, Sparkles 

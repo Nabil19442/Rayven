@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { supabase as sharedSupabase } from '../supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 
 const rawUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_URL) || 
@@ -11,19 +12,23 @@ const supabaseUrl = rawUrl.trim();
 const supabaseAnonKey = rawKey.trim();
 
 export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
-  supabaseUrl !== 'MY_SUPABASE_URL' && 
-  supabaseUrl.startsWith('https://')
+  sharedSupabase || (
+    supabaseUrl && 
+    supabaseAnonKey && 
+    supabaseUrl !== 'MY_SUPABASE_URL' && 
+    supabaseUrl.startsWith('https://')
+  )
 );
 
-export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    })
-  : null;
+export const supabase = sharedSupabase || (
+  isSupabaseConfigured
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        },
+      })
+    : null
+);
 
