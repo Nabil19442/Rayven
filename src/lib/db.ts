@@ -1,11 +1,13 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { 
   Product, Category, Order, UserProfile, Banner, Coupon, StoreSettings, 
-  ProductReview, CustomerAddress, ActivityLog, JerseySize, OrderStatus, PaymentStatus 
+  ProductReview, CustomerAddress, ActivityLog, JerseySize, OrderStatus, PaymentStatus,
+  FAQItem, CMSPage, ContactMessage, NewsletterSubscriber 
 } from '../types';
 import { 
   initialProducts, initialCategories, initialBanners, initialCoupons, 
-  initialStoreSettings, demoAdminUser, demoCustomerUser, initialOrders 
+  initialStoreSettings, demoAdminUser, demoCustomerUser, initialOrders,
+  initialFAQs, initialCMSPages, initialContactMessages, initialSubscribers 
 } from './initialData';
 
 // Local storage keys for persistent offline/fallback operations
@@ -21,6 +23,10 @@ const STORAGE_KEYS = {
   WISHLIST: 'rayven_wishlist_v1',
   LOGS: 'rayven_logs_v1',
   CURRENT_USER: 'rayven_current_user_v1',
+  FAQS: 'rayven_faqs_v1',
+  PAGES: 'rayven_pages_v1',
+  MESSAGES: 'rayven_messages_v1',
+  SUBSCRIBERS: 'rayven_subscribers_v1',
 };
 
 // Helpers for localStorage sync
@@ -51,6 +57,10 @@ if (typeof window !== 'undefined') {
   if (!localStorage.getItem(STORAGE_KEYS.COUPONS)) setStored(STORAGE_KEYS.COUPONS, initialCoupons);
   if (!localStorage.getItem(STORAGE_KEYS.BANNERS)) setStored(STORAGE_KEYS.BANNERS, initialBanners);
   if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) setStored(STORAGE_KEYS.SETTINGS, initialStoreSettings);
+  if (!localStorage.getItem(STORAGE_KEYS.FAQS)) setStored(STORAGE_KEYS.FAQS, initialFAQs);
+  if (!localStorage.getItem(STORAGE_KEYS.PAGES)) setStored(STORAGE_KEYS.PAGES, initialCMSPages);
+  if (!localStorage.getItem(STORAGE_KEYS.MESSAGES)) setStored(STORAGE_KEYS.MESSAGES, initialContactMessages);
+  if (!localStorage.getItem(STORAGE_KEYS.SUBSCRIBERS)) setStored(STORAGE_KEYS.SUBSCRIBERS, initialSubscribers);
   // Do NOT automatically log in any demo user
 }
 
@@ -732,6 +742,18 @@ export const db = {
   // STORE SETTINGS & BANNERS
   // ----------------------------------------------------
   async getStoreSettings(): Promise<StoreSettings> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.from('store_settings').select('*').limit(1).single();
+        if (!error && data) {
+          const merged = { ...initialStoreSettings, ...data };
+          setStored(STORAGE_KEYS.SETTINGS, merged);
+          return merged as StoreSettings;
+        }
+      } catch (e) {
+        console.warn('Supabase store_settings fallback to local:', e);
+      }
+    }
     return getStored<StoreSettings>(STORAGE_KEYS.SETTINGS, initialStoreSettings);
   },
 
@@ -739,7 +761,20 @@ export const db = {
     const current = await db.getStoreSettings();
     const updated = { ...current, ...settings, updated_at: new Date().toISOString() };
     setStored(STORAGE_KEYS.SETTINGS, updated);
-    await db.logActivity('Admin User', 'admin', 'UPDATE_SETTINGS', 'Store and delivery settings updated.', 'settings');
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('store_settings').upsert({
+          id: current.id || 'store-settings-1',
+          ...updated,
+          updated_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.warn('Supabase store_settings update fallback:', e);
+      }
+    }
+
+    await db.logActivity('Admin User', 'admin', 'UPDATE_SETTINGS', 'Store, CMS, and delivery settings updated.', 'settings');
     return updated;
   },
 
@@ -748,6 +783,17 @@ export const db = {
   },
 
   async getBanners(): Promise<Banner[]> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.from('banners').select('*').order('display_order', { ascending: true });
+        if (!error && data && data.length > 0) {
+          setStored(STORAGE_KEYS.BANNERS, data);
+          return data as Banner[];
+        }
+      } catch (e) {
+        console.warn('Supabase banners query fallback:', e);
+      }
+    }
     return getStored<Banner[]>(STORAGE_KEYS.BANNERS, initialBanners);
   },
 
@@ -760,7 +806,7 @@ export const db = {
       list[existingIndex] = saved;
     } else {
       saved = {
-        id: `b-${Date.now()}`,
+        id: banner.id || `b-${Date.now()}`,
         title: banner.title,
         subtitle: banner.subtitle || '',
         tag: banner.tag || 'NEW DROP',
@@ -770,13 +816,25 @@ export const db = {
         link_url: banner.link_url || '/shop',
         cta_link: banner.link_url || banner.cta_link || '/shop',
         image_url: banner.image_url,
+        position: banner.position || 'home_hero',
         display_order: banner.display_order || list.length + 1,
+        sort_order: banner.display_order || list.length + 1,
         is_active: banner.is_active !== undefined ? Boolean(banner.is_active) : true,
         created_at: new Date().toISOString()
       };
       list.push(saved);
     }
     setStored(STORAGE_KEYS.BANNERS, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('banners').upsert(saved);
+      } catch (e) {
+        console.warn('Supabase banners upsert fallback:', e);
+      }
+    }
+
+    await db.logActivity('Admin User', 'admin', 'SAVE_BANNER', `Banner "${saved.title}" saved.`, 'banners', saved.id);
     return saved;
   },
 
@@ -794,6 +852,15 @@ export const db = {
     if (index < 0) return null;
     list[index] = { ...list[index], ...updates };
     setStored(STORAGE_KEYS.BANNERS, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('banners').update(updates).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase banner update error:', e);
+      }
+    }
+
     return list[index];
   },
 
@@ -801,7 +868,294 @@ export const db = {
     let list = getStored<Banner[]>(STORAGE_KEYS.BANNERS, initialBanners);
     list = list.filter(b => b.id !== id);
     setStored(STORAGE_KEYS.BANNERS, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('banners').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase banner delete error:', e);
+      }
+    }
+
+    await db.logActivity('Admin User', 'admin', 'DELETE_BANNER', `Banner ID ${id} deleted.`, 'banners', id);
     return true;
+  },
+
+  // ----------------------------------------------------
+  // FAQ MANAGEMENT
+  // ----------------------------------------------------
+  async getFAQs(activeOnly = false): Promise<FAQItem[]> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        let q = supabase.from('faq').select('*').order('display_order', { ascending: true });
+        if (activeOnly) q = q.eq('is_active', true);
+        const { data, error } = await q;
+        if (!error && data && data.length > 0) {
+          setStored(STORAGE_KEYS.FAQS, data);
+          return data as FAQItem[];
+        }
+      } catch (e) {
+        console.warn('Supabase FAQ query fallback:', e);
+      }
+    }
+    const list = getStored<FAQItem[]>(STORAGE_KEYS.FAQS, initialFAQs);
+    if (activeOnly) return list.filter(f => f.is_active);
+    return list.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+  },
+
+  async saveFAQ(faq: Partial<FAQItem> & { question: string; answer: string }): Promise<FAQItem> {
+    const list = getStored<FAQItem[]>(STORAGE_KEYS.FAQS, initialFAQs);
+    const existingIndex = list.findIndex(f => f.id === faq.id);
+    let saved: FAQItem;
+    if (existingIndex >= 0) {
+      saved = { ...list[existingIndex], ...faq };
+      list[existingIndex] = saved;
+    } else {
+      saved = {
+        id: faq.id || `faq-${Date.now()}`,
+        question: faq.question,
+        answer: faq.answer,
+        display_order: faq.display_order || list.length + 1,
+        is_active: faq.is_active !== undefined ? Boolean(faq.is_active) : true,
+        category: faq.category || 'General',
+        created_at: new Date().toISOString()
+      };
+      list.push(saved);
+    }
+    setStored(STORAGE_KEYS.FAQS, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('faq').upsert(saved);
+      } catch (e) {
+        console.warn('Supabase FAQ upsert error:', e);
+      }
+    }
+
+    await db.logActivity('Admin User', 'admin', 'SAVE_FAQ', `FAQ "${saved.question.substring(0, 40)}..." saved.`, 'faq', saved.id);
+    return saved;
+  },
+
+  async deleteFAQ(id: string): Promise<boolean> {
+    let list = getStored<FAQItem[]>(STORAGE_KEYS.FAQS, initialFAQs);
+    list = list.filter(f => f.id !== id);
+    setStored(STORAGE_KEYS.FAQS, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('faq').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase FAQ delete error:', e);
+      }
+    }
+
+    await db.logActivity('Admin User', 'admin', 'DELETE_FAQ', `FAQ ID ${id} deleted.`, 'faq', id);
+    return true;
+  },
+
+  // ----------------------------------------------------
+  // CMS PAGES (About, Returns, Terms, Privacy, Shipping)
+  // ----------------------------------------------------
+  async getCMSPages(): Promise<CMSPage[]> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.from('pages').select('*');
+        if (!error && data && data.length > 0) {
+          setStored(STORAGE_KEYS.PAGES, data);
+          return data as CMSPage[];
+        }
+      } catch (e) {
+        console.warn('Supabase pages query fallback:', e);
+      }
+    }
+    return getStored<CMSPage[]>(STORAGE_KEYS.PAGES, initialCMSPages);
+  },
+
+  async getCMSPage(slug: string): Promise<CMSPage | null> {
+    const list = await db.getCMSPages();
+    return list.find(p => p.slug === slug) || null;
+  },
+
+  async saveCMSPage(page: Partial<CMSPage> & { slug: string; title: string; content: string }): Promise<CMSPage> {
+    const list = getStored<CMSPage[]>(STORAGE_KEYS.PAGES, initialCMSPages);
+    const existingIndex = list.findIndex(p => p.slug === page.slug || p.id === page.id);
+    let saved: CMSPage;
+    if (existingIndex >= 0) {
+      saved = { ...list[existingIndex], ...page, updated_at: new Date().toISOString() };
+      list[existingIndex] = saved;
+    } else {
+      saved = {
+        id: page.id || `page-${page.slug}-${Date.now()}`,
+        slug: page.slug,
+        title: page.title,
+        subtitle: page.subtitle || '',
+        content: page.content,
+        metadata: page.metadata || {},
+        is_published: page.is_published !== undefined ? Boolean(page.is_published) : true,
+        updated_at: new Date().toISOString()
+      };
+      list.push(saved);
+    }
+    setStored(STORAGE_KEYS.PAGES, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('pages').upsert(saved);
+      } catch (e) {
+        console.warn('Supabase pages upsert error:', e);
+      }
+    }
+
+    await db.logActivity('Admin User', 'admin', 'SAVE_PAGE', `CMS Page "${saved.title}" (${saved.slug}) updated.`, 'pages', saved.id);
+    return saved;
+  },
+
+  // ----------------------------------------------------
+  // CONTACT MESSAGES (From Storefront Contact Form)
+  // ----------------------------------------------------
+  async getContactMessages(): Promise<ContactMessage[]> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.from('contact_messages').select('*').order('created_at', { ascending: false });
+        if (!error && data && data.length > 0) {
+          setStored(STORAGE_KEYS.MESSAGES, data);
+          return data as ContactMessage[];
+        }
+      } catch (e) {
+        console.warn('Supabase contact_messages fallback:', e);
+      }
+    }
+    return getStored<ContactMessage[]>(STORAGE_KEYS.MESSAGES, initialContactMessages);
+  },
+
+  async createContactMessage(msg: Omit<ContactMessage, 'id' | 'created_at' | 'status'> & { status?: ContactMessage['status'] }): Promise<ContactMessage> {
+    const list = getStored<ContactMessage[]>(STORAGE_KEYS.MESSAGES, initialContactMessages);
+    const newMsg: ContactMessage = {
+      ...msg,
+      id: `msg-${Date.now()}`,
+      status: msg.status || 'new',
+      created_at: new Date().toISOString()
+    };
+    list.unshift(newMsg);
+    setStored(STORAGE_KEYS.MESSAGES, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('contact_messages').insert(newMsg);
+      } catch (e) {
+        console.warn('Supabase contact message insert error:', e);
+      }
+    }
+
+    await db.logActivity(newMsg.name, 'customer', 'CONTACT_SUBMIT', `Customer message received from ${newMsg.phone}`, 'messages', newMsg.id);
+    return newMsg;
+  },
+
+  async updateContactMessageStatus(id: string, status: ContactMessage['status'], adminNotes?: string): Promise<ContactMessage | null> {
+    const list = getStored<ContactMessage[]>(STORAGE_KEYS.MESSAGES, initialContactMessages);
+    const index = list.findIndex(m => m.id === id);
+    if (index < 0) return null;
+    list[index].status = status;
+    if (adminNotes !== undefined) list[index].admin_notes = adminNotes;
+    setStored(STORAGE_KEYS.MESSAGES, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('contact_messages').update({ status, admin_notes: adminNotes }).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase message update error:', e);
+      }
+    }
+
+    await db.logActivity('Admin User', 'admin', 'UPDATE_MESSAGE_STATUS', `Message ${id} marked as ${status}`, 'messages', id);
+    return list[index];
+  },
+
+  async deleteContactMessage(id: string): Promise<boolean> {
+    let list = getStored<ContactMessage[]>(STORAGE_KEYS.MESSAGES, initialContactMessages);
+    list = list.filter(m => m.id !== id);
+    setStored(STORAGE_KEYS.MESSAGES, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('contact_messages').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase message delete error:', e);
+      }
+    }
+
+    return true;
+  },
+
+  // ----------------------------------------------------
+  // NEWSLETTER SUBSCRIBERS
+  // ----------------------------------------------------
+  async getNewsletterSubscribers(): Promise<NewsletterSubscriber[]> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.from('newsletter_subscribers').select('*').order('created_at', { ascending: false });
+        if (!error && data && data.length > 0) {
+          setStored(STORAGE_KEYS.SUBSCRIBERS, data);
+          return data as NewsletterSubscriber[];
+        }
+      } catch (e) {
+        console.warn('Supabase subscribers fallback:', e);
+      }
+    }
+    return getStored<NewsletterSubscriber[]>(STORAGE_KEYS.SUBSCRIBERS, initialSubscribers);
+  },
+
+  async addNewsletterSubscriber(email: string): Promise<{ success: boolean; message: string; subscriber?: NewsletterSubscriber }> {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, message: 'Please enter a valid email address.' };
+    }
+
+    const list = getStored<NewsletterSubscriber[]>(STORAGE_KEYS.SUBSCRIBERS, initialSubscribers);
+    const existing = list.find(s => s.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      return { success: true, message: 'You are already subscribed! Check your inbox for exclusive kit drop alerts.', subscriber: existing };
+    }
+
+    const newSub: NewsletterSubscriber = {
+      id: `sub-${Date.now()}`,
+      email: cleanEmail,
+      status: 'active',
+      created_at: new Date().toISOString()
+    };
+    list.unshift(newSub);
+    setStored(STORAGE_KEYS.SUBSCRIBERS, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('newsletter_subscribers').insert(newSub);
+      } catch (e) {
+        console.warn('Supabase subscriber insert error:', e);
+      }
+    }
+
+    await db.logActivity(cleanEmail, 'customer', 'NEWSLETTER_SUBSCRIBE', `New subscriber joined squad: ${cleanEmail}`, 'newsletter', newSub.id);
+    return { success: true, message: 'Welcome to the RAYVEN squad! Use code RAYVEN10 for 10% off your next kit.', subscriber: newSub };
+  },
+
+  async deleteSubscriber(id: string): Promise<boolean> {
+    let list = getStored<NewsletterSubscriber[]>(STORAGE_KEYS.SUBSCRIBERS, initialSubscribers);
+    list = list.filter(s => s.id !== id && s.email !== id);
+    setStored(STORAGE_KEYS.SUBSCRIBERS, list);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('newsletter_subscribers').delete().or(`id.eq.${id},email.eq.${id}`);
+      } catch (e) {
+        console.warn('Supabase subscriber delete error:', e);
+      }
+    }
+
+    return true;
+  },
+
+  async deleteNewsletterSubscriber(idOrEmail: string): Promise<boolean> {
+    return db.deleteSubscriber(idOrEmail);
   },
 
   // ----------------------------------------------------

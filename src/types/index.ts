@@ -220,26 +220,208 @@ export interface Banner {
   created_at: string;
 }
 
+export interface SocialLinkConfig {
+  url: string;
+  enabled: boolean;
+}
+
+export interface PaymentMethodConfig {
+  cod: {
+    enabled: boolean;
+    title: string;
+    description: string;
+  };
+  bkash: {
+    enabled: boolean;
+    number: string;
+    account_type: 'Merchant' | 'Personal' | 'Agent';
+    instructions: string;
+  };
+  nagad: {
+    enabled: boolean;
+    number: string;
+    account_type: 'Merchant' | 'Personal' | 'Agent';
+    instructions: string;
+  };
+}
+
+export interface HeroSectionConfig {
+  enabled: boolean;
+  badge_text: string;
+  headline_primary: string;
+  headline_highlight: string;
+  description: string;
+  button_primary_text: string;
+  button_primary_url: string;
+  button_secondary_text: string;
+  button_secondary_url: string;
+  image_url: string;
+  mobile_image_url?: string;
+  trust_badges: Array<{ title: string; subtitle: string }>;
+}
+
+export interface HomepageSectionsConfig {
+  hero: boolean;
+  categories: boolean;
+  featured_products: boolean;
+  new_arrivals: boolean;
+  bestsellers: boolean;
+  retro_classics: boolean;
+  banners: boolean;
+  why_rayven: boolean;
+  reviews: boolean;
+  newsletter: boolean;
+}
+
+export interface WhyRayvenBlock {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+export interface SEOConfig {
+  meta_title: string;
+  meta_description: string;
+  meta_keywords: string;
+  og_title: string;
+  og_description: string;
+  og_image_url: string;
+}
+
+export interface AnnouncementConfig {
+  enabled: boolean;
+  text: string;
+  badge: string;
+  link_url?: string;
+  placement: 'homepage' | 'checkout' | 'shop' | 'all' | 'none';
+}
+
+export interface FooterConfig {
+  description: string;
+  copyright_text: string;
+  payment_text: string;
+  show_delivery_info: boolean;
+}
+
 export interface StoreSettings {
   id: string;
+  // 1. General Info
   store_name: string;
   store_tagline?: string;
   tagline?: string;
-  logo_url?: string;
-  phone: string;
-  email: string;
-  facebook_url?: string;
-  instagram_url?: string;
-  whatsapp_number?: string;
-  announcement_bar?: string;
-  announcement_text?: string;
-  inside_dhaka_delivery_fee: number;
-  outside_dhaka_delivery_fee: number;
-  free_shipping_threshold: number;
+  store_description?: string;
+  business_category?: string;
   currency_symbol?: string;
   order_prefix?: string;
+  store_status: 'OPEN' | 'CLOSED' | 'MAINTENANCE';
+  status_message?: string;
+
+  // 2. Branding
+  logo_url?: string;
+  dark_logo_url?: string;
+  light_logo_url?: string;
+  favicon_url?: string;
+  footer_logo_url?: string;
+  primary_color?: string;
+  secondary_color?: string;
+
+  // 3. Contact Info
+  phone: string;
+  support_phone?: string;
+  email: string;
+  support_email?: string;
+  whatsapp_number?: string;
+  business_address?: string;
+  city?: string;
+  district?: string;
+  country?: string;
+  business_hours?: string;
+  google_maps_url?: string;
+  showroom_address?: string;
+
+  // 4. Social Links
+  social_links?: {
+    facebook: SocialLinkConfig;
+    instagram: SocialLinkConfig;
+    tiktok: SocialLinkConfig;
+    youtube: SocialLinkConfig;
+    whatsapp: SocialLinkConfig;
+    messenger: SocialLinkConfig;
+  };
+  facebook_url?: string;
+  instagram_url?: string;
+
+  // 5. Delivery & Shipping
+  inside_dhaka_delivery_fee: number;
+  outside_dhaka_delivery_fee: number;
+  inside_dhaka_delivery_time?: string;
+  outside_dhaka_delivery_time?: string;
+  free_shipping_threshold: number;
+  free_shipping_enabled?: boolean;
+  shipping_note?: string;
+  courier_partners?: string[];
+
+  // 6. Payment Methods
+  payment_methods?: PaymentMethodConfig;
+
+  // 7. Homepage & Sections CMS
+  hero_section?: HeroSectionConfig;
+  homepage_sections?: HomepageSectionsConfig;
+  why_rayven?: WhyRayvenBlock[];
+
+  // 8. SEO
+  seo?: SEOConfig;
+
+  // 9. Announcement
+  announcement_bar?: string;
+  announcement_text?: string;
+  announcement?: AnnouncementConfig;
+
+  // 10. Footer
+  footer?: FooterConfig;
+
   created_at: string;
   updated_at?: string;
+}
+
+export interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
+  display_order: number;
+  is_active: boolean;
+  category?: string;
+  created_at?: string;
+}
+
+export interface CMSPage {
+  id: string;
+  slug: string; // 'about' | 'returns' | 'terms' | 'privacy' | 'shipping'
+  title: string;
+  subtitle?: string;
+  content: string;
+  metadata?: Record<string, any>;
+  is_published: boolean;
+  updated_at?: string;
+}
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  subject?: string;
+  message: string;
+  status: 'new' | 'read' | 'replied' | 'archived';
+  admin_notes?: string;
+  created_at: string;
+}
+
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  status: 'active' | 'unsubscribed';
+  created_at: string;
 }
 
 export interface ActivityLog {
@@ -252,3 +434,4 @@ export interface ActivityLog {
   target_id?: string;
   created_at: string;
 }
+

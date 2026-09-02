@@ -1,10 +1,12 @@
 import React from 'react';
+import { useStore } from '../contexts/StoreContext';
 
 interface RayvenLogoProps {
   variant?: 'light' | 'dark' | 'purple' | 'minimal';
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showSubtitle?: boolean;
   subtitleText?: string;
+  showText?: boolean;
   iconOnly?: boolean;
   className?: string;
 }
@@ -14,9 +16,12 @@ export const RayvenLogo: React.FC<RayvenLogoProps> = ({
   size = 'md',
   showSubtitle = true,
   subtitleText = 'SPORTSWEAR',
+  showText = true,
   iconOnly = false,
   className = '',
 }) => {
+  const { settings } = useStore();
+
   // Dimensions
   const iconSizes = {
     sm: 'w-7 h-7',
@@ -42,6 +47,38 @@ export const RayvenLogo: React.FC<RayvenLogoProps> = ({
   // Determine colors based on variant
   const isDark = variant === 'dark';
   const isPurple = variant === 'purple';
+
+  if (settings?.logo_url) {
+    return (
+      <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
+        <img
+          src={settings.logo_url}
+          alt={settings.store_name || 'RAYVEN'}
+          className={`${iconSizes[size]} object-contain rounded-lg`}
+        />
+        {showText && !iconOnly && (
+          <div className="flex flex-col">
+            <span
+              className={`font-display font-black tracking-wider uppercase ${textSizes[size]} ${
+                isDark ? 'text-white' : 'text-[#1F2024]'
+              }`}
+            >
+              {settings.store_name || 'RAYVEN'}
+            </span>
+            {showSubtitle && (
+              <span
+                className={`font-mono font-bold uppercase ${subSizes[size]} ${
+                  isDark ? 'text-[#8B5AD9]' : 'text-[#6D35C8]'
+                } -mt-0.5`}
+              >
+                {settings.tagline || subtitleText}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
@@ -90,7 +127,7 @@ export const RayvenLogo: React.FC<RayvenLogoProps> = ({
         <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[#8B5AD9] ring-2 ring-white"></span>
       </div>
 
-      {!iconOnly && (
+      {showText && !iconOnly && (
         <div className="flex flex-col">
           <div className="flex items-center gap-1 leading-none">
             <span
@@ -101,7 +138,7 @@ export const RayvenLogo: React.FC<RayvenLogoProps> = ({
               }`}
               style={{ letterSpacing: '0.04em' }}
             >
-              RAYVEN
+              {settings.store_name || 'RAYVEN'}
             </span>
           </div>
           {showSubtitle && (
@@ -110,7 +147,7 @@ export const RayvenLogo: React.FC<RayvenLogoProps> = ({
                 isDark ? 'text-[#8B5AD9]' : 'text-[#6D35C8]'
               } -mt-0.5`}
             >
-              {subtitleText}
+              {settings.tagline || subtitleText}
             </span>
           )}
         </div>

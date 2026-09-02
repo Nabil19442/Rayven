@@ -1,187 +1,1136 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useStore } from '../../contexts/StoreContext';
 import { db } from '../../lib/db';
 import { StoreSettings } from '../../types';
-import { Save, Settings, DollarSign, Truck, Phone, Mail, MapPin } from 'lucide-react';
+import { uploadAppFile } from '../../lib/storage';
+import { 
+  Save, Settings, DollarSign, Truck, Phone, Mail, MapPin, 
+  Globe, Share2, Palette, Megaphone, Shield, AlertTriangle, 
+  Upload, X, CheckCircle2, RefreshCw, Eye, ExternalLink,
+  CreditCard, Smartphone, Lock, HelpCircle
+} from 'lucide-react';
+
+type SettingsTab = 'general' | 'branding' | 'contact' | 'social' | 'shipping' | 'payment' | 'announcement' | 'seo';
 
 export const AdminSettings: React.FC = () => {
-  const { settings, setSettings, formatBDT, showToast } = useStore();
-
-  const [storeName, setStoreName] = useState(settings.store_name || 'RAYVEN');
-  const [tagline, setTagline] = useState(settings.tagline || 'Matchday & Authentic Football Kits');
-  const [phone, setPhone] = useState(settings.phone || '+880 1712 345678');
-  const [email, setEmail] = useState(settings.email || 'support@rayven.com');
-  const [insideDhaka, setInsideDhaka] = useState(String(settings.inside_dhaka_delivery_fee || 60));
-  const [outsideDhaka, setOutsideDhaka] = useState(String(settings.outside_dhaka_delivery_fee || 120));
-  const [freeThreshold, setFreeThreshold] = useState(String(settings.free_shipping_threshold || 3000));
-  const [announcement, setAnnouncement] = useState(settings.announcement_text || '⚡ FREE SHIPPING ON ORDERS OVER ৳3000 | 24-48H DHAKA DELIVERY');
+  const { settings, updateSettings, showToast, formatBDT } = useStore();
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
+  // Form State initialized from settings
+  const [formData, setFormData] = useState<StoreSettings>({ ...settings });
 
-    const payload: Partial<StoreSettings> = {
-      store_name: storeName,
-      tagline,
-      phone,
-      email,
-      inside_dhaka_delivery_fee: Number(insideDhaka),
-      outside_dhaka_delivery_fee: Number(outsideDhaka),
-      free_shipping_threshold: Number(freeThreshold),
-      announcement_text: announcement,
-    };
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const darkLogoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
+  const ogImageInputRef = useRef<HTMLInputElement>(null);
 
-    const updated = await db.updateSettings(payload);
-    if (updated) {
-      setSettings(updated);
-      showToast('Store settings saved successfully!', 'success');
+  // Handle image upload from device
+  const handleFileUpload = async (field: keyof StoreSettings | 'og_image_url', file: File) => {
+    try {
+      setUploadingField(field);
+      const result = await uploadAppFile({
+        file,
+        featureName: 'site-assets',
+        itemId: field,
+      });
+
+      if (field === 'og_image_url') {
+        setFormData(prev => ({
+          ...prev,
+          seo: {
+            ...prev.seo,
+            og_image_url: result.url,
+            meta_title: prev.seo?.meta_title || '',
+            meta_description: prev.seo?.meta_description || '',
+            meta_keywords: prev.seo?.meta_keywords || '',
+            og_title: prev.seo?.og_title || '',
+            og_description: prev.seo?.og_description || '',
+          }
+        }));
+      } else {
+        setFormData(prev => ({ ...prev, [field]: result.url }));
+      }
+      showToast('Asset uploaded successfully!', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to upload asset', 'error');
+    } finally {
+      setUploadingField(null);
     }
-    setIsSaving(false);
+  };
+
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSaving(true);
+    try {
+      const updated = await updateSettings(formData);
+      setFormData({ ...updated });
+      showToast('All Store & CMS settings saved successfully!', 'success');
+    } catch (err) {
+      showToast('Failed to save settings.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 text-[#1F2024]">
-      <div>
-        <span className="text-xs font-mono font-bold text-[#6D35C8] uppercase tracking-widest">
-          CONFIGURATION
-        </span>
-        <h1 className="font-display text-3xl font-black text-[#1F2024] uppercase tracking-tight">
-          Store & Delivery Settings
-        </h1>
+    <div className="max-w-6xl mx-auto space-y-8 text-[#1F2024]">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="text-xs font-mono font-bold text-[#6D35C8] uppercase tracking-widest">
+            STORE MANAGEMENT & CMS
+          </span>
+          <h1 className="font-display text-3xl font-black text-[#1F2024] uppercase tracking-tight">
+            Store Settings & Configuration
+          </h1>
+          <p className="text-xs text-zinc-500 mt-1">
+            Manage branding, delivery rates, contact details, social channels, SEO, and store availability.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => handleSave()}
+          disabled={isSaving}
+          className="px-6 py-3 bg-[#6D35C8] hover:bg-[#4B218A] text-white font-bold rounded-2xl text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-md shadow-purple-900/20 cursor-pointer disabled:opacity-50 self-start sm:self-auto"
+        >
+          {isSaving ? (
+            <>
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              <span>Saving Changes...</span>
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              <span>Save All Settings</span>
+            </>
+          )}
+        </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Brand & Store Profile */}
-        <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-4">
-          <h2 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider">
-            1. Brand Identity & Contact
-          </h2>
+      {/* Tabs Navigation */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-[#E5E5E3] no-scrollbar">
+        {[
+          { id: 'general', label: 'General Info', icon: Settings },
+          { id: 'branding', label: 'Branding & Assets', icon: Palette },
+          { id: 'contact', label: 'Contact & Address', icon: Phone },
+          { id: 'social', label: 'Social Channels', icon: Share2 },
+          { id: 'shipping', label: 'Delivery & Shipping', icon: Truck },
+          { id: 'payment', label: 'Payment Options', icon: CreditCard },
+          { id: 'announcement', label: 'Announcement Bar', icon: Megaphone },
+          { id: 'seo', label: 'SEO & Metadata', icon: Globe },
+        ].map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as SettingsTab)}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition shrink-0 cursor-pointer ${
+                isActive
+                  ? 'bg-[#1F2024] text-white shadow-xs'
+                  : 'bg-white text-zinc-600 hover:bg-[#F7F7F5] border border-[#E5E5E3]'
+              }`}
+            >
+              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#8B5AD9]' : 'text-zinc-400'}`} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold uppercase text-zinc-700 mb-1 block">Store Name</label>
-              <input
-                type="text"
-                required
-                value={storeName}
-                onChange={(e) => setStoreName(e.target.value)}
-                className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
-              />
-            </div>
+      {/* TAB CONTENT */}
+      <form onSubmit={handleSave} className="space-y-6">
+        {/* 1. GENERAL TAB */}
+        {activeTab === 'general' && (
+          <div className="space-y-6">
+            <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-6">
+              <h3 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider flex items-center gap-2">
+                <Settings className="w-4 h-4 text-[#6D35C8]" />
+                <span>Store Identity & Operation Status</span>
+              </h3>
 
-            <div>
-              <label className="text-xs font-bold uppercase text-zinc-700 mb-1 block">Tagline</label>
-              <input
-                type="text"
-                value={tagline}
-                onChange={(e) => setTagline(e.target.value)}
-                className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
-              />
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Store Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.store_name}
+                    onChange={(e) => setFormData({ ...formData, store_name: e.target.value })}
+                    className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                  />
+                </div>
 
-            <div>
-              <label className="text-xs font-bold uppercase text-zinc-700 mb-1 block">Helpline / WhatsApp</label>
-              <input
-                type="text"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
-              />
-            </div>
+                <div>
+                  <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Store Tagline / Slogan</label>
+                  <input
+                    type="text"
+                    value={formData.store_tagline || ''}
+                    onChange={(e) => setFormData({ ...formData, store_tagline: e.target.value, tagline: e.target.value })}
+                    className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                  />
+                </div>
 
-            <div>
-              <label className="text-xs font-bold uppercase text-zinc-700 mb-1 block">Support Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
-              />
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Store Description</label>
+                  <textarea
+                    rows={2}
+                    value={formData.store_description || ''}
+                    onChange={(e) => setFormData({ ...formData, store_description: e.target.value })}
+                    className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl p-3 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Currency Symbol</label>
+                  <input
+                    type="text"
+                    value={formData.currency_symbol || '৳'}
+                    onChange={(e) => setFormData({ ...formData, currency_symbol: e.target.value })}
+                    className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Order Number Prefix</label>
+                  <input
+                    type="text"
+                    value={formData.order_prefix || 'RAY'}
+                    onChange={(e) => setFormData({ ...formData, order_prefix: e.target.value })}
+                    className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                  />
+                </div>
+              </div>
+
+              {/* Store Status Toggle */}
+              <div className="pt-4 border-t border-[#E5E5E3] space-y-4">
+                <label className="text-xs font-bold uppercase text-zinc-700 block">Store Availability Mode</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    { status: 'OPEN', label: 'Store Open', desc: 'Customers can browse and place orders normally' },
+                    { status: 'CLOSED', label: 'Store Closed', desc: 'Display store closed notice to visitors' },
+                    { status: 'MAINTENANCE', label: 'Maintenance Mode', desc: 'Display maintenance notice while updating' },
+                  ].map(mode => (
+                    <button
+                      key={mode.status}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, store_status: mode.status as any })}
+                      className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
+                        formData.store_status === mode.status
+                          ? 'bg-[#F3EEFC] border-[#6D35C8] text-[#6D35C8]'
+                          : 'bg-[#F7F7F5] border-zinc-200 text-zinc-600 hover:border-zinc-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs uppercase">{mode.label}</span>
+                        {formData.store_status === mode.status && <CheckCircle2 className="w-4 h-4 text-[#6D35C8]" />}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 mt-1">{mode.desc}</p>
+                    </button>
+                  ))}
+                </div>
+
+                {formData.store_status !== 'OPEN' && (
+                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+                    <label className="text-xs font-bold uppercase text-amber-900 block">Notice Message Displayed to Visitors</label>
+                    <input
+                      type="text"
+                      value={formData.status_message || ''}
+                      onChange={(e) => setFormData({ ...formData, status_message: e.target.value })}
+                      placeholder="e.g. We are currently restocking 2026/27 UCL Player Kits. Ordering resumes at 6:00 PM."
+                      className="w-full bg-white border border-amber-300 rounded-xl px-4 py-2 text-xs text-zinc-800 focus:outline-none"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Delivery Rates & Free Shipping */}
-        <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-4">
-          <h2 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider">
-            2. Bangladesh Delivery Fees & Thresholds
-          </h2>
+        {/* 2. BRANDING TAB */}
+        {activeTab === 'branding' && (
+          <div className="space-y-6">
+            <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-6">
+              <div>
+                <h3 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-[#6D35C8]" />
+                  <span>Logos & Visual Assets</span>
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Upload your brand logo assets directly from your device. Supported formats: PNG, JPG, WEBP, SVG (Max 10MB).
+                </p>
+              </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="text-xs font-bold uppercase text-zinc-700 mb-1 block">
-                Inside Dhaka Fee (BDT ৳)
-              </label>
-              <input
-                type="number"
-                required
-                value={insideDhaka}
-                onChange={(e) => setInsideDhaka(e.target.value)}
-                className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
-              />
-              <p className="text-[10px] text-zinc-500 mt-1">Default ৳60 (24-48 hours)</p>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Main Light Logo */}
+                <div className="p-5 rounded-2xl bg-[#F7F7F5] border border-zinc-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase text-zinc-700">Navbar / Light Logo</span>
+                    {formData.light_logo_url || formData.logo_url ? (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        Uploaded
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-zinc-400">Default SVG</span>
+                    )}
+                  </div>
 
-            <div>
-              <label className="text-xs font-bold uppercase text-zinc-700 mb-1 block">
-                Outside Dhaka Fee (BDT ৳)
-              </label>
-              <input
-                type="number"
-                required
-                value={outsideDhaka}
-                onChange={(e) => setOutsideDhaka(e.target.value)}
-                className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
-              />
-              <p className="text-[10px] text-zinc-500 mt-1">Default ৳120 (48-72 hours)</p>
-            </div>
+                  <div className="h-24 rounded-xl bg-white border border-dashed border-zinc-300 flex items-center justify-center p-2 relative overflow-hidden">
+                    {formData.light_logo_url || formData.logo_url ? (
+                      <img
+                        src={formData.light_logo_url || formData.logo_url}
+                        alt="Light Logo"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-xs text-zinc-400 font-mono">No Custom Image</span>
+                    )}
+                  </div>
 
-            <div>
-              <label className="text-xs font-bold uppercase text-zinc-700 mb-1 block">
-                Free Delivery Threshold (BDT ৳)
-              </label>
-              <input
-                type="number"
-                required
-                value={freeThreshold}
-                onChange={(e) => setFreeThreshold(e.target.value)}
-                className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
-              />
-              <p className="text-[10px] text-zinc-500 mt-1">Free delivery for orders above this</p>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) handleFileUpload('light_logo_url', e.target.files[0]);
+                    }}
+                  />
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={uploadingField === 'light_logo_url'}
+                      className="flex-1 py-2 bg-white hover:bg-zinc-100 text-zinc-700 text-xs font-bold rounded-xl border border-zinc-300 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{uploadingField === 'light_logo_url' ? 'Uploading...' : 'Choose File'}</span>
+                    </button>
+                    {(formData.light_logo_url || formData.logo_url) && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, light_logo_url: '', logo_url: '' })}
+                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-200 transition"
+                        title="Remove Logo"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer / Dark Logo */}
+                <div className="p-5 rounded-2xl bg-[#1F2024] text-white border border-zinc-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase text-zinc-300">Footer / Dark Logo</span>
+                    {formData.dark_logo_url ? (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-800">
+                        Uploaded
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-zinc-500">Default SVG</span>
+                    )}
+                  </div>
+
+                  <div className="h-24 rounded-xl bg-zinc-900 border border-dashed border-zinc-700 flex items-center justify-center p-2 relative overflow-hidden">
+                    {formData.dark_logo_url ? (
+                      <img
+                        src={formData.dark_logo_url}
+                        alt="Dark Logo"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-xs text-zinc-500 font-mono">No Custom Image</span>
+                    )}
+                  </div>
+
+                  <input
+                    ref={darkLogoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) handleFileUpload('dark_logo_url', e.target.files[0]);
+                    }}
+                  />
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => darkLogoInputRef.current?.click()}
+                      disabled={uploadingField === 'dark_logo_url'}
+                      className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold rounded-xl border border-zinc-700 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{uploadingField === 'dark_logo_url' ? 'Uploading...' : 'Choose File'}</span>
+                    </button>
+                    {formData.dark_logo_url && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, dark_logo_url: '' })}
+                        className="p-2 text-rose-400 hover:bg-rose-950/40 rounded-xl border border-rose-800 transition"
+                        title="Remove Logo"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Favicon */}
+                <div className="p-5 rounded-2xl bg-[#F7F7F5] border border-zinc-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase text-zinc-700">Browser Favicon</span>
+                    {formData.favicon_url ? (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        Uploaded
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-zinc-400">Default</span>
+                    )}
+                  </div>
+
+                  <div className="h-24 rounded-xl bg-white border border-dashed border-zinc-300 flex items-center justify-center p-2 relative overflow-hidden">
+                    {formData.favicon_url ? (
+                      <img
+                        src={formData.favicon_url}
+                        alt="Favicon"
+                        className="w-10 h-10 object-contain rounded-lg shadow-xs"
+                      />
+                    ) : (
+                      <span className="text-xs text-zinc-400 font-mono">32x32 / 64x64 PNG</span>
+                    )}
+                  </div>
+
+                  <input
+                    ref={faviconInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) handleFileUpload('favicon_url', e.target.files[0]);
+                    }}
+                  />
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => faviconInputRef.current?.click()}
+                      disabled={uploadingField === 'favicon_url'}
+                      className="flex-1 py-2 bg-white hover:bg-zinc-100 text-zinc-700 text-xs font-bold rounded-xl border border-zinc-300 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{uploadingField === 'favicon_url' ? 'Uploading...' : 'Choose File'}</span>
+                    </button>
+                    {formData.favicon_url && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, favicon_url: '' })}
+                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-200 transition"
+                        title="Remove Favicon"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Brand Colors */}
+              <div className="pt-6 border-t border-[#E5E5E3] space-y-4">
+                <h4 className="font-bold text-xs uppercase text-zinc-800">Brand Color Accent Palette</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#F7F7F5] border border-zinc-200">
+                    <input
+                      type="color"
+                      value={formData.primary_color || '#6D35C8'}
+                      onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
+                      className="w-10 h-10 rounded-xl cursor-pointer border-0 bg-transparent"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-zinc-800 uppercase">Primary Accent</p>
+                      <p className="text-[11px] font-mono text-zinc-500">{formData.primary_color || '#6D35C8'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#F7F7F5] border border-zinc-200">
+                    <input
+                      type="color"
+                      value={formData.secondary_color || '#8B5AD9'}
+                      onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
+                      className="w-10 h-10 rounded-xl cursor-pointer border-0 bg-transparent"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-zinc-800 uppercase">Secondary Glow</p>
+                      <p className="text-[11px] font-mono text-zinc-500">{formData.secondary_color || '#8B5AD9'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Top Header Announcement */}
-        <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-4">
-          <h2 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider">
-            3. Storefront Announcement
-          </h2>
+        {/* 3. CONTACT TAB */}
+        {activeTab === 'contact' && (
+          <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-6">
+            <h3 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider flex items-center gap-2">
+              <Phone className="w-4 h-4 text-[#6D35C8]" />
+              <span>Customer Helpline & Business Location</span>
+            </h3>
 
-          <div>
-            <label className="text-xs font-bold uppercase text-zinc-700 mb-1 block">
-              Announcement Message
-            </label>
-            <input
-              type="text"
-              value={announcement}
-              onChange={(e) => setAnnouncement(e.target.value)}
-              className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">WhatsApp Helpline</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value, support_phone: e.target.value, whatsapp_number: e.target.value })}
+                  placeholder="+880 1711-234567"
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Official Support Email</label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value, support_email: e.target.value })}
+                  placeholder="orders@rayven.store"
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Dispatch Hub / Showroom Address</label>
+                <input
+                  type="text"
+                  value={formData.business_address || formData.showroom_address || ''}
+                  onChange={(e) => setFormData({ ...formData, business_address: e.target.value, showroom_address: e.target.value })}
+                  placeholder="House 42, Road 11, Block D, Banani, Dhaka 1213, Bangladesh"
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Business Operating Hours</label>
+                <input
+                  type="text"
+                  value={formData.business_hours || 'Everyday: 10:00 AM - 11:00 PM'}
+                  onChange={(e) => setFormData({ ...formData, business_hours: e.target.value })}
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Google Maps Link</label>
+                <input
+                  type="url"
+                  value={formData.google_maps_url || ''}
+                  onChange={(e) => setFormData({ ...formData, google_maps_url: e.target.value })}
+                  placeholder="https://maps.google.com/?q=..."
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="flex justify-end">
+        {/* 4. SOCIAL CHANNELS TAB */}
+        {activeTab === 'social' && (
+          <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-6">
+            <div>
+              <h3 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-[#6D35C8]" />
+                <span>Social Media & Community Links</span>
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Enable or disable social links displayed on the website navbar, footer, and contact hubs.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { key: 'facebook', label: 'Facebook Page / Group', placeholder: 'https://facebook.com/rayvenfootball' },
+                { key: 'instagram', label: 'Instagram Profile', placeholder: 'https://instagram.com/rayven.bd' },
+                { key: 'tiktok', label: 'TikTok Channel', placeholder: 'https://tiktok.com/@rayvenfootball' },
+                { key: 'youtube', label: 'YouTube Channel', placeholder: 'https://youtube.com/@rayvensportswear' },
+                { key: 'whatsapp', label: 'WhatsApp Direct Chat', placeholder: 'https://wa.me/8801711234567' },
+                { key: 'messenger', label: 'Facebook Messenger', placeholder: 'https://m.me/rayvenfootball' },
+              ].map(item => {
+                const currentSocial = formData.social_links?.[item.key as keyof typeof formData.social_links] || {
+                  url: (item.key === 'facebook' ? formData.facebook_url : item.key === 'instagram' ? formData.instagram_url : '') || '',
+                  enabled: true
+                };
+
+                return (
+                  <div key={item.key} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl bg-[#F7F7F5] border border-zinc-200">
+                    <div className="w-48 shrink-0 flex items-center justify-between sm:justify-start gap-3">
+                      <span className="text-xs font-bold uppercase text-zinc-800">{item.label}</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={currentSocial.enabled}
+                          onChange={(e) => {
+                            const updated = {
+                              ...formData.social_links,
+                              [item.key]: { ...currentSocial, enabled: e.target.checked }
+                            };
+                            setFormData({ ...formData, social_links: updated as any });
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#6D35C8]"></div>
+                      </label>
+                    </div>
+
+                    <input
+                      type="url"
+                      value={currentSocial.url}
+                      disabled={!currentSocial.enabled}
+                      onChange={(e) => {
+                        const updated = {
+                          ...formData.social_links,
+                          [item.key]: { ...currentSocial, url: e.target.value }
+                        };
+                        setFormData({
+                          ...formData,
+                          social_links: updated as any,
+                          facebook_url: item.key === 'facebook' ? e.target.value : formData.facebook_url,
+                          instagram_url: item.key === 'instagram' ? e.target.value : formData.instagram_url,
+                        });
+                      }}
+                      placeholder={item.placeholder}
+                      className="flex-1 bg-white border border-zinc-200 rounded-xl px-3 py-2 text-xs text-[#1F2024] font-mono focus:outline-none focus:border-[#6D35C8] disabled:opacity-40"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 5. SHIPPING & DELIVERY TAB */}
+        {activeTab === 'shipping' && (
+          <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-6">
+            <h3 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider flex items-center gap-2">
+              <Truck className="w-4 h-4 text-[#6D35C8]" />
+              <span>Bangladesh Delivery Rates & Free Shipping</span>
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">
+                  Inside Dhaka Delivery Fee (৳)
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={formData.inside_dhaka_delivery_fee}
+                  onChange={(e) => setFormData({ ...formData, inside_dhaka_delivery_fee: Number(e.target.value) })}
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+                <p className="text-[11px] text-zinc-500 mt-1">Default ৳60 across Dhaka Metropolitan</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">
+                  Outside Dhaka Delivery Fee (৳)
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={formData.outside_dhaka_delivery_fee}
+                  onChange={(e) => setFormData({ ...formData, outside_dhaka_delivery_fee: Number(e.target.value) })}
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+                <p className="text-[11px] text-zinc-500 mt-1">Default ৳120 across all other 63 districts</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">
+                  Free Shipping Minimum (৳)
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={formData.free_shipping_threshold}
+                  onChange={(e) => setFormData({ ...formData, free_shipping_threshold: Number(e.target.value) })}
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] font-mono focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+                <p className="text-[11px] text-zinc-500 mt-1">Orders above this receive ৳0 delivery fee</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">
+                  Inside Dhaka Delivery Time
+                </label>
+                <input
+                  type="text"
+                  value={formData.inside_dhaka_delivery_time || '24-48 Hours'}
+                  onChange={(e) => setFormData({ ...formData, inside_dhaka_delivery_time: e.target.value })}
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">
+                  Outside Dhaka Delivery Time
+                </label>
+                <input
+                  type="text"
+                  value={formData.outside_dhaka_delivery_time || '48-72 Hours'}
+                  onChange={(e) => setFormData({ ...formData, outside_dhaka_delivery_time: e.target.value })}
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-6">
+                <input
+                  type="checkbox"
+                  id="free-shipping-toggle"
+                  checked={formData.free_shipping_enabled !== false}
+                  onChange={(e) => setFormData({ ...formData, free_shipping_enabled: e.target.checked })}
+                  className="w-4 h-4 text-[#6D35C8] rounded border-zinc-300 focus:ring-[#6D35C8]"
+                />
+                <label htmlFor="free-shipping-toggle" className="text-xs font-bold text-zinc-800 cursor-pointer uppercase">
+                  Enable Free Delivery Promotion
+                </label>
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Shipping & Courier Notice</label>
+                <input
+                  type="text"
+                  value={formData.shipping_note || ''}
+                  onChange={(e) => setFormData({ ...formData, shipping_note: e.target.value })}
+                  placeholder="Parcels are dispatched daily via SteadFast and Pathao Express with live SMS tracking."
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 6. PAYMENT TAB */}
+        {activeTab === 'payment' && (
+          <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-6">
+            <div>
+              <h3 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-[#6D35C8]" />
+                <span>Payment Gateways & Mobile Banking</span>
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Configure payment channels displayed during checkout.
+              </p>
+            </div>
+
+            {/* COD */}
+            <div className="p-5 rounded-2xl bg-[#F7F7F5] border border-zinc-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-[#6D35C8]" />
+                  <span className="font-bold text-xs uppercase text-zinc-800">Cash on Delivery (COD)</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.payment_methods?.cod?.enabled !== false}
+                    onChange={(e) => {
+                      const pm = formData.payment_methods || ({} as any);
+                      setFormData({
+                        ...formData,
+                        payment_methods: {
+                          ...pm,
+                          cod: {
+                            enabled: e.target.checked,
+                            title: pm.cod?.title || 'Cash on Delivery (COD)',
+                            description: pm.cod?.description || 'Inspect and verify your parcel right at your doorstep before paying.',
+                          }
+                        } as any
+                      });
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#6D35C8]"></div>
+                </label>
+              </div>
+              <p className="text-xs text-zinc-500">Allows customer to pay in cash after parcel inspection at delivery.</p>
+            </div>
+
+            {/* bKash */}
+            <div className="p-5 rounded-2xl bg-[#F7F7F5] border border-zinc-200 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-pink-600" />
+                  <span className="font-bold text-xs uppercase text-zinc-800">bKash Mobile Payment</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.payment_methods?.bkash?.enabled !== false}
+                    onChange={(e) => {
+                      const pm = formData.payment_methods || ({} as any);
+                      setFormData({
+                        ...formData,
+                        payment_methods: {
+                          ...pm,
+                          bkash: {
+                            enabled: e.target.checked,
+                            number: pm.bkash?.number || '01711234567',
+                            account_type: pm.bkash?.account_type || 'Merchant',
+                            instructions: pm.bkash?.instructions || 'Pay to our bKash Merchant account with Order ID as reference.',
+                          }
+                        } as any
+                      });
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#6D35C8]"></div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] font-bold uppercase text-zinc-600 block mb-1">bKash Account Number</label>
+                  <input
+                    type="text"
+                    value={formData.payment_methods?.bkash?.number || '01711234567'}
+                    onChange={(e) => {
+                      const pm = formData.payment_methods || ({} as any);
+                      setFormData({
+                        ...formData,
+                        payment_methods: {
+                          ...pm,
+                          bkash: { ...(pm.bkash || {}), number: e.target.value }
+                        } as any
+                      });
+                    }}
+                    className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-xs font-mono text-zinc-800 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase text-zinc-600 block mb-1">Account Type</label>
+                  <select
+                    value={formData.payment_methods?.bkash?.account_type || 'Merchant'}
+                    onChange={(e) => {
+                      const pm = formData.payment_methods || ({} as any);
+                      setFormData({
+                        ...formData,
+                        payment_methods: {
+                          ...pm,
+                          bkash: { ...(pm.bkash || {}), account_type: e.target.value as any }
+                        } as any
+                      });
+                    }}
+                    className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-xs text-zinc-800 focus:outline-none"
+                  >
+                    <option value="Merchant">Merchant (Make Payment)</option>
+                    <option value="Personal">Personal (Send Money)</option>
+                    <option value="Agent">Agent (Cash In)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Nagad */}
+            <div className="p-5 rounded-2xl bg-[#F7F7F5] border border-zinc-200 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-orange-600" />
+                  <span className="font-bold text-xs uppercase text-zinc-800">Nagad Mobile Payment</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.payment_methods?.nagad?.enabled !== false}
+                    onChange={(e) => {
+                      const pm = formData.payment_methods || ({} as any);
+                      setFormData({
+                        ...formData,
+                        payment_methods: {
+                          ...pm,
+                          nagad: {
+                            enabled: e.target.checked,
+                            number: pm.nagad?.number || '01711234567',
+                            account_type: pm.nagad?.account_type || 'Merchant',
+                            instructions: pm.nagad?.instructions || 'Pay to our Nagad account with Order ID.',
+                          }
+                        } as any
+                      });
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#6D35C8]"></div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] font-bold uppercase text-zinc-600 block mb-1">Nagad Account Number</label>
+                  <input
+                    type="text"
+                    value={formData.payment_methods?.nagad?.number || '01711234567'}
+                    onChange={(e) => {
+                      const pm = formData.payment_methods || ({} as any);
+                      setFormData({
+                        ...formData,
+                        payment_methods: {
+                          ...pm,
+                          nagad: { ...(pm.nagad || {}), number: e.target.value }
+                        } as any
+                      });
+                    }}
+                    className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-xs font-mono text-zinc-800 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase text-zinc-600 block mb-1">Account Type</label>
+                  <select
+                    value={formData.payment_methods?.nagad?.account_type || 'Merchant'}
+                    onChange={(e) => {
+                      const pm = formData.payment_methods || ({} as any);
+                      setFormData({
+                        ...formData,
+                        payment_methods: {
+                          ...pm,
+                          nagad: { ...(pm.nagad || {}), account_type: e.target.value as any }
+                        } as any
+                      });
+                    }}
+                    className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-xs text-zinc-800 focus:outline-none"
+                  >
+                    <option value="Merchant">Merchant</option>
+                    <option value="Personal">Personal</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 7. ANNOUNCEMENT TAB */}
+        {activeTab === 'announcement' && (
+          <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider flex items-center gap-2">
+                  <Megaphone className="w-4 h-4 text-[#6D35C8]" />
+                  <span>Top Announcement Banner</span>
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Display an active announcement bar across header and storefront pages.
+                </p>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.announcement?.enabled !== false}
+                  onChange={(e) => {
+                    const ann = formData.announcement || ({} as any);
+                    setFormData({
+                      ...formData,
+                      announcement: {
+                        ...ann,
+                        enabled: e.target.checked,
+                        text: ann.text || formData.announcement_text || '🔥 100% MASTER GRADE KITS | ⚡ INSIDE DHAKA ৳60 / OUTSIDE DHAKA ৳120',
+                        badge: ann.badge || 'EXCLUSIVE MATCHDAY DROP',
+                        placement: ann.placement || 'all'
+                      }
+                    });
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#6D35C8]"></div>
+              </label>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Announcement Message</label>
+                <input
+                  type="text"
+                  value={formData.announcement?.text || formData.announcement_bar || formData.announcement_text || ''}
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    const ann = formData.announcement || ({} as any);
+                    setFormData({
+                      ...formData,
+                      announcement_bar: text,
+                      announcement_text: text,
+                      announcement: { ...ann, text }
+                    });
+                  }}
+                  placeholder="🔥 100% MASTER GRADE KITS | ⚡ INSIDE DHAKA ৳60 / OUTSIDE DHAKA ৳120 | 📦 FREE SHIPPING ON ৳3,000+"
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Badge Label</label>
+                  <input
+                    type="text"
+                    value={formData.announcement?.badge || 'EXCLUSIVE DROP'}
+                    onChange={(e) => {
+                      const ann = formData.announcement || ({} as any);
+                      setFormData({ ...formData, announcement: { ...ann, badge: e.target.value } });
+                    }}
+                    className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Display Placement</label>
+                  <select
+                    value={formData.announcement?.placement || 'all'}
+                    onChange={(e) => {
+                      const ann = formData.announcement || ({} as any);
+                      setFormData({ ...formData, announcement: { ...ann, placement: e.target.value as any } });
+                    }}
+                    className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                  >
+                    <option value="all">All Pages (Top Navbar)</option>
+                    <option value="homepage">Homepage Only</option>
+                    <option value="shop">Shop Page Only</option>
+                    <option value="checkout">Checkout Page Only</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="p-4 rounded-2xl bg-[#17181C] text-white border border-zinc-800 space-y-2">
+                <span className="text-[10px] uppercase font-mono font-bold text-zinc-400">Live Header Preview</span>
+                <div className="py-2 px-4 rounded-xl bg-[#1F2024] border border-zinc-700 flex items-center justify-center gap-2 text-xs">
+                  <span className="px-2 py-0.5 rounded-full bg-[#6D35C8] text-white text-[10px] font-black uppercase tracking-wider">
+                    {formData.announcement?.badge || 'EXCLUSIVE DROP'}
+                  </span>
+                  <span className="text-zinc-200 font-medium truncate">
+                    {formData.announcement?.text || formData.announcement_text || '🔥 100% MASTER GRADE KITS | INSIDE DHAKA ৳60 / OUTSIDE DHAKA ৳120'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 8. SEO TAB */}
+        {activeTab === 'seo' && (
+          <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-6">
+            <h3 className="font-display text-base font-bold text-[#1F2024] uppercase tracking-wider flex items-center gap-2">
+              <Globe className="w-4 h-4 text-[#6D35C8]" />
+              <span>Search Engine Optimization & Social Sharing</span>
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Site Meta Title</label>
+                <input
+                  type="text"
+                  value={formData.seo?.meta_title || ''}
+                  onChange={(e) => {
+                    const seo = formData.seo || ({} as any);
+                    setFormData({ ...formData, seo: { ...seo, meta_title: e.target.value } });
+                  }}
+                  placeholder="RAYVEN | Premium Football Jerseys in Bangladesh"
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Meta Description</label>
+                <textarea
+                  rows={3}
+                  value={formData.seo?.meta_description || ''}
+                  onChange={(e) => {
+                    const seo = formData.seo || ({} as any);
+                    setFormData({ ...formData, seo: { ...seo, meta_description: e.target.value } });
+                  }}
+                  placeholder="Buy authentic master-grade player edition jerseys, retro classic kits, and custom name prints in Bangladesh..."
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl p-3 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-zinc-700 mb-1.5 block">Meta Keywords</label>
+                <input
+                  type="text"
+                  value={formData.seo?.meta_keywords || ''}
+                  onChange={(e) => {
+                    const seo = formData.seo || ({} as any);
+                    setFormData({ ...formData, seo: { ...seo, meta_keywords: e.target.value } });
+                  }}
+                  placeholder="football jerseys bangladesh, authentic player edition, real madrid jersey dhaka"
+                  className="w-full bg-[#F7F7F5] border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-[#1F2024] focus:bg-white focus:outline-none focus:border-[#6D35C8]"
+                />
+              </div>
+
+              {/* Social Share OG Image */}
+              <div className="pt-4 border-t border-[#E5E5E3] space-y-3">
+                <label className="text-xs font-bold uppercase text-zinc-700 block">Social Sharing (Open Graph) Banner Image</label>
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <div className="w-48 aspect-[1.91/1] rounded-xl bg-[#F7F7F5] border border-dashed border-zinc-300 flex items-center justify-center overflow-hidden shrink-0">
+                    {formData.seo?.og_image_url ? (
+                      <img src={formData.seo.og_image_url} alt="OG Banner" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[10px] text-zinc-400 font-mono">1200 x 630 px</span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <input
+                      ref={ogImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) handleFileUpload('og_image_url', e.target.files[0]);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => ogImageInputRef.current?.click()}
+                      disabled={uploadingField === 'og_image_url'}
+                      className="px-4 py-2 bg-white hover:bg-zinc-100 text-zinc-700 text-xs font-bold rounded-xl border border-zinc-300 flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{uploadingField === 'og_image_url' ? 'Uploading...' : 'Upload Social Share Image'}</span>
+                    </button>
+                    <p className="text-[11px] text-zinc-500">
+                      This image is displayed when your store link is shared on Facebook, WhatsApp, or Twitter.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Save Bar */}
+        <div className="sticky bottom-6 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-[#E5E5E3] shadow-lg flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>Changes will apply immediately across your customer storefront.</span>
+          </div>
+
           <button
             type="submit"
             disabled={isSaving}
-            className="px-8 py-3.5 bg-[#6D35C8] hover:bg-[#4B218A] disabled:opacity-50 text-white font-bold rounded-xl text-xs uppercase tracking-wider flex items-center gap-2 transition shadow-md shadow-purple-900/20 cursor-pointer"
+            className="px-6 py-2.5 bg-[#6D35C8] hover:bg-[#4B218A] text-white font-bold rounded-xl text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-md shadow-purple-900/20 cursor-pointer disabled:opacity-50"
           >
-            <Save className="w-4 h-4" />
-            <span>{isSaving ? 'Saving...' : 'Save Configuration'}</span>
+            {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span>Save Settings</span>
           </button>
         </div>
       </form>

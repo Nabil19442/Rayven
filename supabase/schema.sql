@@ -201,22 +201,84 @@ CREATE TABLE IF NOT EXISTS public.store_settings (
     store_name TEXT DEFAULT 'RAYVEN' NOT NULL,
     store_tagline TEXT DEFAULT 'Official Football Kits & Sportswear' NOT NULL,
     logo_url TEXT DEFAULT '' NOT NULL,
+    favicon_url TEXT DEFAULT '' NOT NULL,
     phone TEXT DEFAULT '+880 1711-000000' NOT NULL,
     email TEXT DEFAULT 'support@rayven.store' NOT NULL,
+    address TEXT DEFAULT 'House 42, Road 11, Block D, Banani, Dhaka 1213, Bangladesh' NOT NULL,
     facebook_url TEXT DEFAULT 'https://facebook.com/rayvenfootball' NOT NULL,
     instagram_url TEXT DEFAULT 'https://instagram.com/rayven.bd' NOT NULL,
+    youtube_url TEXT DEFAULT '' NOT NULL,
+    tiktok_url TEXT DEFAULT '' NOT NULL,
     whatsapp_number TEXT DEFAULT '+8801711000000' NOT NULL,
     announcement_bar TEXT DEFAULT '🔥 FREE SHIPPING ON ORDERS OVER ৳3,000 | ⚡ 24-48H EXPRESS DELIVERY IN DHAKA' NOT NULL,
-    inside_dhaka_delivery_fee NUMERIC(10, 2) DEFAULT 60.00 NOT NULL,
-    outside_dhaka_delivery_fee NUMERIC(10, 2) DEFAULT 120.00 NOT NULL,
+    announcement_enabled BOOLEAN DEFAULT true NOT NULL,
+    inside_dhaka_delivery_fee NUMERIC(10, 2) DEFAULT 70.00 NOT NULL,
+    outside_dhaka_delivery_fee NUMERIC(10, 2) DEFAULT 130.00 NOT NULL,
     free_shipping_threshold NUMERIC(10, 2) DEFAULT 3000.00 NOT NULL,
     currency_symbol TEXT DEFAULT '৳' NOT NULL,
+    currency_code TEXT DEFAULT 'BDT' NOT NULL,
     order_prefix TEXT DEFAULT 'RAY' NOT NULL,
+    enable_custom_printing BOOLEAN DEFAULT true NOT NULL,
+    enable_reviews BOOLEAN DEFAULT true NOT NULL,
+    enable_coupons BOOLEAN DEFAULT true NOT NULL,
+    enable_wishlist BOOLEAN DEFAULT true NOT NULL,
+    enable_inventory_tracking BOOLEAN DEFAULT true NOT NULL,
+    enable_size_guide BOOLEAN DEFAULT true NOT NULL,
+    seo_meta_title TEXT DEFAULT 'RAYVEN | Official Football Kits & Master-Grade Jerseys in Bangladesh' NOT NULL,
+    seo_meta_description TEXT DEFAULT 'Shop authentic master-grade football jerseys, player issue matchday kits, retro classics, and custom name printing across Bangladesh with fast COD delivery.' NOT NULL,
+    hero JSONB DEFAULT '{}'::jsonb NOT NULL,
+    homepage_sections JSONB DEFAULT '{}'::jsonb NOT NULL,
+    why_rayven_cards JSONB DEFAULT '[]'::jsonb NOT NULL,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 15. ACTIVITY LOGS TABLE
+-- 15. CMS PAGES TABLE
+CREATE TABLE IF NOT EXISTS public.pages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    content TEXT NOT NULL,
+    meta_title TEXT DEFAULT '',
+    meta_description TEXT DEFAULT '',
+    is_published BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 16. FAQ TABLE
+CREATE TABLE IF NOT EXISTS public.faq (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    category TEXT DEFAULT 'General' NOT NULL,
+    display_order INT DEFAULT 0 NOT NULL,
+    is_published BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 17. CONTACT MESSAGES TABLE
+CREATE TABLE IF NOT EXISTS public.contact_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    email TEXT DEFAULT '',
+    phone TEXT NOT NULL,
+    subject TEXT DEFAULT 'General Inquiry' NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'unread' NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 18. NEWSLETTER SUBSCRIBERS TABLE
+CREATE TABLE IF NOT EXISTS public.newsletter_subscribers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT NOT NULL UNIQUE,
+    is_active BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 19. ACTIVITY LOGS TABLE
 CREATE TABLE IF NOT EXISTS public.activity_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     actor_name TEXT NOT NULL,
@@ -244,7 +306,24 @@ ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.faq ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+
+-- Additional Policies for CMS Tables
+CREATE POLICY "Pages viewable by all" ON public.pages FOR SELECT USING (is_published = true OR public.is_admin());
+CREATE POLICY "Admins manage pages" ON public.pages FOR ALL USING (public.is_admin());
+
+CREATE POLICY "FAQs viewable by all" ON public.faq FOR SELECT USING (is_published = true OR public.is_admin());
+CREATE POLICY "Admins manage faqs" ON public.faq FOR ALL USING (public.is_admin());
+
+CREATE POLICY "Anyone can submit contact message" ON public.contact_messages FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admins manage contact messages" ON public.contact_messages FOR ALL USING (public.is_admin());
+
+CREATE POLICY "Anyone can subscribe to newsletter" ON public.newsletter_subscribers FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admins manage newsletter subscribers" ON public.newsletter_subscribers FOR ALL USING (public.is_admin());
 
 -- Helper function: Is Current User Admin
 CREATE OR REPLACE FUNCTION public.is_admin()

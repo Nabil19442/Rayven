@@ -4,7 +4,8 @@ import { useStore } from '../../contexts/StoreContext';
 import { RayvenLogo } from '../../components/RayvenLogo';
 import { 
   LayoutDashboard, ShoppingBag, PlusCircle, FolderTree, ClipboardList, 
-  Boxes, Ticket, Image, Settings, LogOut, ArrowLeft, Shield, ExternalLink 
+  Boxes, Ticket, Image, Settings, LogOut, ArrowLeft, Shield, ExternalLink,
+  Sparkles, FileText, HelpCircle, Mail, Users, Activity
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -23,16 +24,37 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const { user, logout } = useAuth();
   const { settings } = useStore();
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'products', label: 'All Match Kits', icon: ShoppingBag },
-    { id: 'add-product', label: 'Add New Kit', icon: PlusCircle },
-    { id: 'orders', label: 'Orders & Dispatch', icon: ClipboardList },
-    { id: 'inventory', label: 'Stock & Inventory', icon: Boxes },
-    { id: 'categories', label: 'Clubs & Categories', icon: FolderTree },
-    { id: 'coupons', label: 'Coupons & Promos', icon: Ticket },
-    { id: 'banners', label: 'Hero Banners', icon: Image },
-    { id: 'settings', label: 'Store Settings', icon: Settings },
+  const navSections = [
+    {
+      title: 'Store Operations',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'products', label: 'All Match Kits', icon: ShoppingBag },
+        { id: 'add-product', label: 'Add New Kit', icon: PlusCircle },
+        { id: 'orders', label: 'Orders & Dispatch', icon: ClipboardList },
+        { id: 'inventory', label: 'Stock & Inventory', icon: Boxes },
+        { id: 'categories', label: 'Clubs & Leagues', icon: FolderTree },
+        { id: 'coupons', label: 'Coupons & Promos', icon: Ticket },
+      ]
+    },
+    {
+      title: 'CMS & Content Studio',
+      items: [
+        { id: 'banners', label: 'Hero Banners', icon: Image },
+        { id: 'homepage-cms', label: 'Homepage CMS', icon: Sparkles },
+        { id: 'pages-cms', label: 'Pages & Policies', icon: FileText },
+        { id: 'faq-cms', label: 'FAQ Manager', icon: HelpCircle },
+        { id: 'messages', label: 'Inquiries & Contact', icon: Mail },
+        { id: 'subscribers', label: 'Newsletter Squad', icon: Users },
+      ]
+    },
+    {
+      title: 'Configuration',
+      items: [
+        { id: 'settings', label: 'Store Settings', icon: Settings },
+        { id: 'logs', label: 'Activity Audit Logs', icon: Activity },
+      ]
+    }
   ];
 
   const handleSignOut = async () => {
@@ -43,8 +65,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-[#1F2024] flex flex-col lg:flex-row font-sans selection:bg-[#6D35C8] selection:text-white">
       {/* Sidebar */}
-      <aside className="w-full lg:w-64 bg-white border-r border-[#E5E5E3] flex flex-col justify-between shrink-0 shadow-xs">
-        <div className="p-5 space-y-6">
+      <aside className="w-full lg:w-64 bg-white border-r border-[#E5E5E3] flex flex-col justify-between shrink-0 shadow-xs max-h-screen lg:sticky lg:top-0">
+        <div className="p-4 sm:p-5 space-y-5 overflow-y-auto">
           {/* Logo & Portal Tag */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -68,31 +90,38 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </button>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onSelectTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition text-left cursor-pointer ${
-                    isActive
-                      ? 'bg-[#6D35C8] text-white font-black shadow-md shadow-purple-900/20'
-                      : 'text-zinc-600 hover:text-zinc-900 hover:bg-[#F7F7F5]'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-zinc-400'}`} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
+          {/* Navigation Sections */}
+          <nav className="space-y-4">
+            {navSections.map((sec, sIdx) => (
+              <div key={sIdx} className="space-y-1">
+                <span className="px-3 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 block mb-1">
+                  {sec.title}
+                </span>
+                {sec.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => onSelectTab(item.id)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition text-left cursor-pointer ${
+                        isActive
+                          ? 'bg-[#6D35C8] text-white font-black shadow-md shadow-purple-900/20'
+                          : 'text-zinc-600 hover:text-zinc-900 hover:bg-[#F7F7F5]'
+                      }`}
+                    >
+                      <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-zinc-400'}`} />
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </div>
 
         {/* User Info & Actions */}
-        <div className="p-5 border-t border-[#E5E5E3] space-y-3 bg-[#F7F7F5]/50">
+        <div className="p-4 border-t border-[#E5E5E3] space-y-3 bg-[#F7F7F5]/50">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500"></div>

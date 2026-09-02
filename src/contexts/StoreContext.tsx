@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { StoreSettings, Category, Product } from '../types';
+import { StoreSettings, Category, Product, FAQItem, CMSPage } from '../types';
 import { db } from '../lib/db';
-import { initialStoreSettings, initialCategories } from '../lib/initialData';
+import { initialStoreSettings, initialCategories, initialFAQs, initialCMSPages } from '../lib/initialData';
 
 export interface ToastMessage {
   id: string;
@@ -12,8 +12,13 @@ export interface ToastMessage {
 interface StoreContextType {
   settings: StoreSettings;
   categories: Category[];
+  faqs: FAQItem[];
+  pages: CMSPage[];
   refreshSettings: () => Promise<void>;
+  updateSettings: (newSettings: Partial<StoreSettings>) => Promise<StoreSettings>;
   refreshCategories: () => Promise<void>;
+  refreshFAQs: () => Promise<void>;
+  refreshPages: () => Promise<void>;
   formatBDT: (amount: number) => string;
   toasts: ToastMessage[];
   showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
@@ -36,6 +41,8 @@ export const BANGLADESH_DISTRICTS = [
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<StoreSettings>(initialStoreSettings);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [faqs, setFaqs] = useState<FAQItem[]>(initialFAQs);
+  const [pages, setPages] = useState<CMSPage[]>(initialCMSPages);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
@@ -45,14 +52,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (s) setSettings(s);
   };
 
+  const updateSettings = async (newSettings: Partial<StoreSettings>) => {
+    const updated = await db.updateStoreSettings(newSettings);
+    setSettings(updated);
+    return updated;
+  };
+
   const refreshCategories = async () => {
     const cats = await db.getCategories();
     if (cats) setCategories(cats);
   };
 
+  const refreshFAQs = async () => {
+    const items = await db.getFAQs();
+    if (items) setFaqs(items);
+  };
+
+  const refreshPages = async () => {
+    const p = await db.getCMSPages();
+    if (p) setPages(p);
+  };
+
   useEffect(() => {
     refreshSettings();
     refreshCategories();
+    refreshFAQs();
+    refreshPages();
   }, []);
 
   const formatBDT = (amount: number): string => {
@@ -76,8 +101,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       value={{
         settings,
         categories,
+        faqs,
+        pages,
         refreshSettings,
+        updateSettings,
         refreshCategories,
+        refreshFAQs,
+        refreshPages,
         formatBDT,
         toasts,
         showToast,

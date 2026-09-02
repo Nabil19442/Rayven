@@ -11,7 +11,7 @@ interface AuthPagesProps {
 }
 
 export const AuthPages: React.FC<AuthPagesProps> = ({ mode, onNavigate }) => {
-  const { switchUserRole } = useAuth();
+  const { login } = useAuth();
   const { showToast } = useStore();
 
   const [name, setName] = useState('');
@@ -123,13 +123,17 @@ export const AuthPages: React.FC<AuthPagesProps> = ({ mode, onNavigate }) => {
     }
   };
 
-  const handleDemoLogin = (role: 'admin' | 'customer') => {
-    switchUserRole(role);
-    showToast(`Logged in as ${role === 'admin' ? 'Store Administrator' : 'Customer'}`, 'success');
+  const handleDemoLogin = async (role: 'admin' | 'customer') => {
     if (role === 'admin') {
       onNavigate('/admin');
-    } else {
+      return;
+    }
+    const res = await login('customer@rayven.com');
+    if (res.success) {
+      showToast('Logged in as Customer', 'success');
       onNavigate('/');
+    } else {
+      showToast(res.error || 'Login failed', 'error');
     }
   };
 

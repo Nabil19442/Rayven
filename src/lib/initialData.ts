@@ -1,4 +1,7 @@
-import { Category, Product, Banner, Coupon, StoreSettings, UserProfile, Order } from '../types';
+import { 
+  Category, Product, Banner, Coupon, StoreSettings, UserProfile, Order,
+  FAQItem, CMSPage, ContactMessage, NewsletterSubscriber 
+} from '../types';
 
 export const initialCategories: Category[] = [
   {
@@ -534,20 +537,332 @@ export const initialStoreSettings: StoreSettings = {
   id: 'store-settings-1',
   store_name: 'RAYVEN',
   store_tagline: 'Premium Football Jerseys & Sportswear in Bangladesh',
-  logo_url: '',
-  phone: '+880 1711-234567',
-  email: 'orders@rayven.store',
-  facebook_url: 'https://facebook.com/rayvenfootball',
-  instagram_url: 'https://instagram.com/rayven.bd',
-  whatsapp_number: '+8801711234567',
-  announcement_bar: '🔥 100% MASTER GRADE KITS | ⚡ INSIDE DHAKA ৳60 / OUTSIDE DHAKA ৳120 | 📦 FREE SHIPPING ON ৳3,000+',
-  inside_dhaka_delivery_fee: 60,
-  outside_dhaka_delivery_fee: 120,
-  free_shipping_threshold: 3000,
+  tagline: 'Premium Football Jerseys & Sportswear in Bangladesh',
+  store_description: 'Bangladesh’s premier football sportswear hub for authentic player editions, club kits, retro classics, and custom name/number prints.',
+  business_category: 'Sportswear & Football Kits',
   currency_symbol: '৳',
   order_prefix: 'RAY',
+  store_status: 'OPEN',
+  status_message: 'We are accepting orders normally with express delivery across all 64 districts.',
+
+  // Branding
+  logo_url: '',
+  dark_logo_url: '',
+  light_logo_url: '',
+  favicon_url: '',
+  footer_logo_url: '',
+  primary_color: '#6D35C8',
+  secondary_color: '#8B5AD9',
+
+  // Contact Info
+  phone: '+880 1711-234567',
+  support_phone: '+880 1711-234567',
+  email: 'orders@rayven.store',
+  support_email: 'support@rayven.store',
+  whatsapp_number: '+8801711234567',
+  business_address: 'House 42, Road 11, Block D, Banani',
+  city: 'Dhaka',
+  district: 'Dhaka',
+  country: 'Bangladesh',
+  business_hours: 'Everyday: 10:00 AM - 11:00 PM (GMT+6)',
+  google_maps_url: 'https://maps.google.com/?q=Banani+Dhaka+Bangladesh',
+  showroom_address: 'House 42, Road 11, Block D, Banani, Dhaka 1213, Bangladesh',
+
+  // Social Links
+  social_links: {
+    facebook: { url: 'https://facebook.com/rayvenfootball', enabled: true },
+    instagram: { url: 'https://instagram.com/rayven.bd', enabled: true },
+    tiktok: { url: 'https://tiktok.com/@rayvenfootball', enabled: true },
+    youtube: { url: 'https://youtube.com/@rayvensportswear', enabled: true },
+    whatsapp: { url: 'https://wa.me/8801711234567', enabled: true },
+    messenger: { url: 'https://m.me/rayvenfootball', enabled: true },
+  },
+  facebook_url: 'https://facebook.com/rayvenfootball',
+  instagram_url: 'https://instagram.com/rayven.bd',
+
+  // Delivery & Shipping
+  inside_dhaka_delivery_fee: 60,
+  outside_dhaka_delivery_fee: 120,
+  inside_dhaka_delivery_time: '24-48 Hours',
+  outside_dhaka_delivery_time: '48-72 Hours',
+  free_shipping_threshold: 3000,
+  free_shipping_enabled: true,
+  shipping_note: 'Parcels are insured and shipped via SteadFast Courier & Pathao Express with live tracking.',
+  courier_partners: ['SteadFast Courier', 'Pathao Express', 'RedX', 'eCourier'],
+
+  // Payment Methods
+  payment_methods: {
+    cod: {
+      enabled: true,
+      title: 'Cash on Delivery (COD)',
+      description: 'Inspect your football kit parcel right at your doorstep before paying.',
+    },
+    bkash: {
+      enabled: true,
+      number: '01711234567',
+      account_type: 'Merchant',
+      instructions: 'Send money / payment to our official bKash Merchant number with Order ID in reference.',
+    },
+    nagad: {
+      enabled: true,
+      number: '01711234567',
+      account_type: 'Merchant',
+      instructions: 'Pay directly to our Nagad Merchant account with your Order ID in reference.',
+    },
+  },
+
+  // Homepage CMS
+  hero_section: {
+    enabled: true,
+    badge_text: 'RAYVEN FOOTBALL LAB',
+    headline_primary: 'WEAR THE PASSION.',
+    headline_highlight: 'FEEL THE GLORY.',
+    description: "Premium Football Jerseys for fans who live the game. Bangladesh's premier destination for master-grade player issue kits, fan editions, retro legends, and bespoke heat-press customization.",
+    button_primary_text: 'SHOP JERSEYS',
+    button_primary_url: '/shop',
+    button_secondary_text: 'EXPLORE COLLECTION',
+    button_secondary_url: '/shop?version=player',
+    image_url: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1000&q=85',
+    trust_badges: [
+      { title: '100% MASTER', subtitle: 'Grade 1:1 Authentic Quality' },
+      { title: '24-48H DHAKA', subtitle: 'Express Courier Delivery' },
+      { title: '7-DAY FIT', subtitle: 'Hassle-Free Size Exchange' },
+    ],
+  },
+  homepage_sections: {
+    hero: true,
+    categories: true,
+    featured_products: true,
+    new_arrivals: true,
+    bestsellers: true,
+    retro_classics: true,
+    banners: true,
+    why_rayven: true,
+    reviews: true,
+    newsletter: true,
+  },
+  why_rayven: [
+    {
+      icon: 'Award',
+      title: '100% Authentic Quality',
+      description: 'High grade master-issue & fan edition football kits with high-density silicone crests and breathable yarn.'
+    },
+    {
+      icon: 'Truck',
+      title: 'Express Delivery Across Bangladesh',
+      description: 'Dhaka delivery in 24-48 hours. All other 63 districts delivered within 48-72 hours with real-time tracking.'
+    },
+    {
+      icon: 'RotateCcw',
+      title: '7 Days Easy Exchange',
+      description: 'Hassle-free size replacement support across all 64 districts. Perfect match fit guaranteed.'
+    },
+    {
+      icon: 'ShieldCheck',
+      title: 'Doorstep Cash on Delivery',
+      description: 'Inspect and verify your football kit parcel right at your doorstep before handing over cash.'
+    }
+  ],
+
+  // SEO
+  seo: {
+    meta_title: 'RAYVEN | Premium Football Jerseys & Authentic Club Kits in Bangladesh',
+    meta_description: 'Buy 100% master-grade authentic player edition football kits, European club jerseys, retro classics, and custom name prints in Bangladesh with Cash on Delivery.',
+    meta_keywords: 'football jerseys bangladesh, authentic player edition, real madrid jersey dhaka, barcelona kit, retro jerseys bd, cash on delivery',
+    og_title: 'RAYVEN — Premium Football Sportswear Lab Bangladesh',
+    og_description: 'Engineered for true football passion. Player editions, fan cuts, and retro vaults with express delivery across Bangladesh.',
+    og_image_url: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1200&q=85',
+  },
+
+  // Announcement
+  announcement_bar: '🔥 100% MASTER GRADE KITS | ⚡ INSIDE DHAKA ৳60 / OUTSIDE DHAKA ৳120 | 📦 FREE SHIPPING ON ৳3,000+',
+  announcement_text: '🔥 100% MASTER GRADE KITS | ⚡ INSIDE DHAKA ৳60 / OUTSIDE DHAKA ৳120 | 📦 FREE SHIPPING ON ৳3,000+',
+  announcement: {
+    enabled: true,
+    text: '🔥 100% MASTER GRADE KITS | ⚡ INSIDE DHAKA ৳60 / OUTSIDE DHAKA ৳120 | 📦 FREE SHIPPING ON ৳3,000+',
+    badge: 'EXCLUSIVE MATCHDAY DROP',
+    link_url: '/shop?version=player',
+    placement: 'all',
+  },
+
+  // Footer
+  footer: {
+    description: 'Bangladesh’s premier football sportswear hub for authentic player editions, club kits, retro classics, and custom name/number prints.',
+    copyright_text: '© 2026 RAYVEN Football Sportswear. All rights reserved.',
+    payment_text: 'Accepted In Bangladesh: Cash on Delivery (COD) • bKash • Nagad',
+    show_delivery_info: true,
+  },
+
   created_at: new Date().toISOString(),
 };
+
+export const initialFAQs: FAQItem[] = [
+  {
+    id: 'faq-1',
+    question: 'Are your jerseys authentic master-quality editions?',
+    answer: 'Yes, 100%. RAYVEN specializes in high-density silicone crests, pro-grade AEROREADY & HEAT.RDY fabrications, and authentic rubber heat-transfer player printing identical to what players wear on European matchdays.',
+    display_order: 1,
+    is_active: true,
+    category: 'Product Quality'
+  },
+  {
+    id: 'faq-2',
+    question: 'What is the delivery timeline and cost across Bangladesh?',
+    answer: 'Inside Dhaka: ৳60 (delivered within 24 to 48 hours). Outside Dhaka (all 64 districts): ৳120 (delivered within 48 to 72 hours via SteadFast/Pathao). Orders over ৳3,000 receive FREE delivery.',
+    display_order: 2,
+    is_active: true,
+    category: 'Shipping & Delivery'
+  },
+  {
+    id: 'faq-3',
+    question: 'Can I inspect the jersey before paying on Cash on Delivery (COD)?',
+    answer: 'Yes, absolutely! You are encouraged to open the parcel and inspect the fabric, size tag, and crest quality in front of the delivery agent before paying.',
+    display_order: 3,
+    is_active: true,
+    category: 'Payment'
+  },
+  {
+    id: 'faq-4',
+    question: 'What is your size exchange policy?',
+    answer: 'We provide a 7-day hassle-free size replacement policy. As long as the jersey tags are attached and the garment is unworn, we will dispatch a replacement size to your doorstep.',
+    display_order: 4,
+    is_active: true,
+    category: 'Returns & Exchange'
+  },
+  {
+    id: 'faq-5',
+    question: 'Can I get custom player name and number printing?',
+    answer: 'Yes! We offer official font custom name and number printing (e.g. MESSI 10, BELLINGHAM 5, MBAPPE 9) with high-density heat-press flock at zero additional charge.',
+    display_order: 5,
+    is_active: true,
+    category: 'Customization'
+  }
+];
+
+export const initialCMSPages: CMSPage[] = [
+  {
+    id: 'page-about',
+    slug: 'about',
+    title: 'About RAYVEN Football',
+    subtitle: 'Forged by passionate football fanatics for the vibrant Bangladeshi football community.',
+    content: `Founded in Dhaka, **RAYVEN** was born out of a desire to eliminate poor-quality sportswear counterfeits and provide Bangladeshi football lovers with tournament-grade matchday kits.
+
+Whether you are supporting Real Madrid in the Champions League, cheering on Argentina's 3-Star legacy, or rocking a vintage Zidane 1998 classic on a weekend turf match, we make sure every stitch, silicone crest, and breathable fiber delivers pure excellence.`,
+    metadata: {
+      stats: [
+        { label: 'Jerseys Delivered', value: '10,000+' },
+        { label: 'Districts Covered', value: '64' },
+        { label: 'Customer Rating', value: '4.9 ★' },
+      ],
+      mission: 'To make authentic tournament-grade football kits and retro heritage apparel accessible to every fan across Bangladesh.',
+      vision: 'To build the most trusted and culturally vibrant football sportswear ecosystem in South Asia.'
+    },
+    is_published: true,
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'page-returns',
+    slug: 'returns',
+    title: '7 Days Exchange & Return Policy',
+    subtitle: 'Hassle-free size replacement support across all 64 districts of Bangladesh.',
+    content: `### Size Replacement Guarantee
+We want you to have the perfect match fit. If the jersey you received is too snug or loose, you can initiate a size exchange within **7 days** of parcel arrival.
+
+### Eligibility Conditions
+- Garment must have original tags attached and packaging intact.
+- Item must be unworn, unwashed, and without damage.
+- Customized jerseys with personal custom names are eligible for exchange in case of printing error or fabric defect.
+
+### How To Request An Exchange
+1. Contact our WhatsApp helpline with your Order ID.
+2. Our team will verify and dispatch your replacement size via reverse courier pickup.`,
+    is_published: true,
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'page-shipping',
+    slug: 'shipping',
+    title: 'Shipping & Delivery Policy',
+    subtitle: 'Express door-to-door courier dispatch across all 64 districts of Bangladesh.',
+    content: `### Delivery Coverage & Charges
+- **Inside Dhaka City:** ৳60 — Delivered within 24 to 48 hours.
+- **Outside Dhaka (All 64 Districts):** ৳120 — Delivered within 48 to 72 hours.
+- **Free Shipping:** All orders of ৳3,000 or more qualify for automated free delivery.
+
+### Courier Partners
+We partner with SteadFast Courier and Pathao Express for prompt cash on delivery parcel deliveries with automated SMS tracking.`,
+    is_published: true,
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'page-terms',
+    slug: 'terms',
+    title: 'Terms & Conditions',
+    subtitle: 'Standard retail conditions and purchase terms for RAYVEN Sportswear customers.',
+    content: `By accessing and purchasing from RAYVEN Football Sportswear, you agree to the sales terms, delivery covenants, and exchange policies governed under Bangladeshi consumer trade regulations.
+
+Prices, promotions, and inventory availability are subject to change without prior notice. All orders placed via Cash on Delivery are verified by our team before courier handover.`,
+    is_published: true,
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'page-privacy',
+    slug: 'privacy',
+    title: 'Privacy Policy',
+    subtitle: 'How we respect and safeguard your personal information.',
+    content: `RAYVEN respects customer data privacy. Your contact details, phone numbers, and delivery addresses are used exclusively for fulfilling parcel shipments and tracking updates.
+
+We do not sell, rent, or trade your personal data to any external advertising aggregators. All digital transactions are processed securely through accredited mobile financial gateways.`,
+    is_published: true,
+    updated_at: new Date().toISOString(),
+  }
+];
+
+export const initialContactMessages: ContactMessage[] = [
+  {
+    id: 'msg-1',
+    name: 'Fahim Shahriar',
+    email: 'fahim.s@gmail.com',
+    phone: '01719876543',
+    subject: 'Bulk Jersey Order for Turf League',
+    message: 'We are organizing an 8-team corporate football tournament in Dhaka next month. Can we order 80 customized kits with player names and corporate logos?',
+    status: 'new',
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+  },
+  {
+    id: 'msg-2',
+    name: 'Sabbir Rahman',
+    email: 'sabbir.bd@yahoo.com',
+    phone: '01811223344',
+    subject: 'Size exchange for Real Madrid kit',
+    message: 'Ordered Large but need Medium for player cut. Tags are completely intact. Please let me know how to exchange.',
+    status: 'read',
+    admin_notes: 'Customer contacted via WhatsApp, exchange parcel dispatched.',
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+  }
+];
+
+export const initialSubscribers: NewsletterSubscriber[] = [
+  {
+    id: 'sub-1',
+    email: 'nabilmubashir730@gmail.com',
+    status: 'active',
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+  },
+  {
+    id: 'sub-2',
+    email: 'footballer.dhaka@gmail.com',
+    status: 'active',
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
+  },
+  {
+    id: 'sub-3',
+    email: 'tanvir.sports@outlook.com',
+    status: 'active',
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(),
+  }
+];
+
 
 export const demoAdminUser: UserProfile = {
   id: 'admin-usr-1',

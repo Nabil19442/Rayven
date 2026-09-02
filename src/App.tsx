@@ -38,6 +38,12 @@ import { AdminInventory } from './pages/admin/AdminInventory';
 import { AdminCategories } from './pages/admin/AdminCategories';
 import { AdminCoupons } from './pages/admin/AdminCoupons';
 import { AdminBanners } from './pages/admin/AdminBanners';
+import { AdminHomepageCMS } from './pages/admin/AdminHomepageCMS';
+import { AdminPagesCMS } from './pages/admin/AdminPagesCMS';
+import { AdminFAQ } from './pages/admin/AdminFAQ';
+import { AdminMessages } from './pages/admin/AdminMessages';
+import { AdminSubscribers } from './pages/admin/AdminSubscribers';
+import { AdminLogs } from './pages/admin/AdminLogs';
 import { AdminSettings } from './pages/admin/AdminSettings';
 
 const AppContent: React.FC = () => {
@@ -141,6 +147,12 @@ const AppContent: React.FC = () => {
         {adminTab === 'categories' && <AdminCategories />}
         {adminTab === 'coupons' && <AdminCoupons />}
         {adminTab === 'banners' && <AdminBanners />}
+        {adminTab === 'homepage-cms' && <AdminHomepageCMS />}
+        {adminTab === 'pages-cms' && <AdminPagesCMS />}
+        {adminTab === 'faq-cms' && <AdminFAQ />}
+        {adminTab === 'messages' && <AdminMessages />}
+        {adminTab === 'subscribers' && <AdminSubscribers />}
+        {adminTab === 'logs' && <AdminLogs />}
         {adminTab === 'settings' && <AdminSettings />}
       </AdminLayout>
     );

@@ -91,7 +91,11 @@ export const AdminProductForm: React.FC<AdminProductFormProps> = ({
 
     try {
       for (const file of fileArray) {
-        const result = await uploadProductImage(file, 'products');
+        const result = await uploadAppFile({
+          file,
+          featureName: 'products',
+          itemId: productToEdit?.id || 'new',
+        });
         uploadedUrls.push(result.url);
       }
 

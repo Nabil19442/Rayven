@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../contexts/StoreContext';
+import { db } from '../lib/db';
 import { RayvenLogo } from './RayvenLogo';
 import { ShieldCheck, Truck, RotateCcw, Award, Phone, Mail, MapPin, Send, ArrowRight } from 'lucide-react';
 
@@ -11,15 +12,28 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   const { settings, formatBDT, showToast } = useStore();
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newsletterEmail || !newsletterEmail.includes('@')) {
       showToast('Please enter a valid email address.', 'error');
       return;
     }
-    setSubscribed(true);
-    showToast('Subscribed! Use code RAYVEN10 for 10% off your next kit!', 'success');
+    setIsSubmitting(true);
+    try {
+      const res = await db.addNewsletterSubscriber(newsletterEmail);
+      if (res.success) {
+        setSubscribed(true);
+        showToast(res.message, 'success');
+      } else {
+        showToast(res.message, 'error');
+      }
+    } catch {
+      showToast('Subscription failed. Please try again.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -78,10 +92,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-4">
-            <RayvenLogo variant="dark" size="lg" subtitleText="PREMIUM FOOTBALL LAB" />
+            <RayvenLogo variant="dark" size="lg" subtitleText={settings.tagline || 'PREMIUM FOOTBALL LAB'} />
 
             <p className="text-xs text-zinc-400 leading-relaxed max-w-sm">
-              {settings.store_tagline || 'Bangladesh’s premier football sportswear hub for authentic player editions, club kits, retro classics, and custom name/number prints.'}
+              {settings.store_description || settings.store_tagline || 'Bangladesh’s premier football sportswear hub for authentic player editions, club kits, retro classics, and custom name/number prints.'}
             </p>
 
             <div className="space-y-2 pt-2 text-xs text-zinc-300">
@@ -99,7 +113,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               </div>
               <div className="flex items-center gap-2.5">
                 <MapPin className="w-4 h-4 text-[#8B5AD9] shrink-0" />
-                <span>House 42, Road 11, Banani, Dhaka 1213, Bangladesh</span>
+                <span>{settings.address || 'House 42, Road 11, Banani, Dhaka 1213, Bangladesh'}</span>
               </div>
             </div>
           </div>
@@ -157,7 +171,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               </li>
               <li>
                 <button onClick={() => onNavigate('/about')} className="hover:text-[#8B5AD9] transition cursor-pointer">
-                  About RAYVEN
+                  About {settings.store_name || 'RAYVEN'}
                 </button>
               </li>
               <li>
@@ -199,7 +213,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
             {subscribed ? (
               <div className="p-3 bg-[#6D35C8]/20 border border-[#6D35C8]/40 rounded-xl text-xs text-purple-200 font-bold">
-                🎉 Welcome to the club! Use code <span className="underline font-mono text-white">RAYVEN10</span> at checkout.
+                🎉 Welcome to the squad! Check your email or use code <span className="underline font-mono text-white">RAYVEN10</span> at checkout.
               </div>
             ) : (
               <form onSubmit={handleSubscribe} className="space-y-2">
@@ -210,15 +224,17 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                     onChange={(e) => setNewsletterEmail(e.target.value)}
                     placeholder="Enter your email"
                     required
+                    disabled={isSubmitting}
                     className="w-full bg-[#2B2D31] border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-[#8B5AD9]"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-[#6D35C8] hover:bg-[#4B218A] text-white font-bold rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-purple-900/20 cursor-pointer"
+                  disabled={isSubmitting}
+                  className="w-full py-2.5 bg-[#6D35C8] hover:bg-[#4B218A] text-white font-bold rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-purple-900/20 cursor-pointer disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>Subscribe & Save</span>
+                  <span>{isSubmitting ? 'Subscribing...' : 'Subscribe & Save'}</span>
                 </button>
               </form>
             )}
@@ -227,8 +243,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
         {/* Bottom copyright and payment methods */}
         <div className="mt-12 pt-8 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
-          <p>© {new Date().getFullYear()} RAYVEN Football Sportswear. All rights reserved.</p>
-          <div className="flex items-center gap-2">
+          <p>© {new Date().getFullYear()} {settings.store_name || 'RAYVEN'} Football Sportswear. All rights reserved.</p>
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] text-zinc-400">Accepted In Bangladesh:</span>
             <span className="px-2.5 py-1 bg-[#2B2D31] border border-zinc-700 rounded-lg text-[10px] font-bold text-zinc-200">
               Cash on Delivery (COD)
