@@ -390,6 +390,7 @@ export interface FAQItem {
   answer: string;
   display_order: number;
   is_active: boolean;
+  is_published?: boolean;
   category?: string;
   created_at?: string;
 }

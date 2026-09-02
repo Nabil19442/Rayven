@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { StoreSettings, Category, Product, FAQItem, CMSPage } from '../types';
 import { db } from '../lib/db';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { initialStoreSettings, initialCategories, initialFAQs, initialCMSPages } from '../lib/initialData';
 
 export interface ToastMessage {
@@ -14,11 +15,13 @@ interface StoreContextType {
   categories: Category[];
   faqs: FAQItem[];
   pages: CMSPage[];
+  isLoadingSettings: boolean;
   refreshSettings: () => Promise<void>;
   updateSettings: (newSettings: Partial<StoreSettings>) => Promise<StoreSettings>;
   refreshCategories: () => Promise<void>;
   refreshFAQs: () => Promise<void>;
   refreshPages: () => Promise<void>;
+  refreshAll: () => Promise<void>;
   formatBDT: (amount: number) => string;
   toasts: ToastMessage[];
   showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
@@ -43,13 +46,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [faqs, setFaqs] = useState<FAQItem[]>(initialFAQs);
   const [pages, setPages] = useState<CMSPage[]>(initialCMSPages);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
   const refreshSettings = async () => {
-    const s = await db.getStoreSettings();
-    if (s) setSettings(s);
+    try {
+      const s = await db.getStoreSettings();
+      if (s) setSettings(s);
+    } catch (e) {
+      console.warn('Failed refreshing store settings:', e);
+    } finally {
+      setIsLoadingSettings(false);
+    }
   };
 
   const updateSettings = async (newSettings: Partial<StoreSettings>) => {
@@ -59,25 +69,72 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const refreshCategories = async () => {
-    const cats = await db.getCategories();
-    if (cats) setCategories(cats);
+    try {
+      const cats = await db.getCategories();
+      if (cats && cats.length > 0) {
+        setCategories(cats);
+      }
+    } catch (e) {
+      console.warn('Failed refreshing categories:', e);
+    }
   };
 
   const refreshFAQs = async () => {
-    const items = await db.getFAQs();
-    if (items) setFaqs(items);
+    try {
+      const items = await db.getFAQs();
+      if (items && items.length > 0) setFaqs(items);
+    } catch (e) {
+      console.warn('Failed refreshing FAQs:', e);
+    }
   };
 
   const refreshPages = async () => {
-    const p = await db.getCMSPages();
-    if (p) setPages(p);
+    try {
+      const p = await db.getCMSPages();
+      if (p && p.length > 0) setPages(p);
+    } catch (e) {
+      console.warn('Failed refreshing CMS pages:', e);
+    }
+  };
+
+  const refreshAll = async () => {
+    await Promise.all([
+      refreshSettings(),
+      refreshCategories(),
+      refreshFAQs(),
+      refreshPages()
+    ]);
   };
 
   useEffect(() => {
-    refreshSettings();
-    refreshCategories();
-    refreshFAQs();
-    refreshPages();
+    refreshAll();
+
+    // Supabase Real-Time Listener: Automatically sync any changes across tabs and devices
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const channel = supabase
+          .channel('rayven-global-sync')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
+            refreshSettings();
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+            refreshCategories();
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'faq' }, () => {
+            refreshFAQs();
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, () => {
+            refreshPages();
+          })
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      } catch (err) {
+        console.warn('Supabase real-time subscription error:', err);
+      }
+    }
   }, []);
 
   const formatBDT = (amount: number): string => {
@@ -103,11 +160,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         categories,
         faqs,
         pages,
+        isLoadingSettings,
         refreshSettings,
         updateSettings,
         refreshCategories,
         refreshFAQs,
         refreshPages,
+        refreshAll,
         formatBDT,
         toasts,
         showToast,

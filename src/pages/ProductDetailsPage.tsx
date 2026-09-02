@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/db';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Product, ProductReview, JerseySize } from '../types';
 import { useStore } from '../contexts/StoreContext';
 import { useCart } from '../contexts/CartContext';
@@ -46,25 +47,44 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
   const [reviewComment, setReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
+  const loadProduct = async () => {
+    const prod = await db.getProductBySlug(slug);
+    if (prod) {
+      setProduct(prod);
+      // Find default available size if not already selected
+      const defaultVar = prod.variants?.find(v => v.stock_quantity > 0) || prod.variants?.[0];
+      if (defaultVar && !selectedSize) setSelectedSize(defaultVar.size);
+
+      // Fetch reviews
+      const revs = await db.getProductReviews(prod.id);
+      setReviews(revs);
+
+      // Fetch related kits
+      const related = await db.getProducts({ categorySlug: prod.category?.slug, limit: 4 });
+      setRelatedProducts(related.filter(r => r.id !== prod.id));
+    }
+    setIsLoading(false);
+  };
+
   useEffect(() => {
     setIsLoading(true);
-    db.getProductBySlug(slug).then(async (prod) => {
-      if (prod) {
-        setProduct(prod);
-        // Find default available size
-        const defaultVar = prod.variants?.find(v => v.stock_quantity > 0) || prod.variants?.[0];
-        if (defaultVar) setSelectedSize(defaultVar.size);
+    loadProduct();
 
-        // Fetch reviews
-        const revs = await db.getProductReviews(prod.id);
-        setReviews(revs);
+    if (isSupabaseConfigured && supabase) {
+      const channel = supabase
+        .channel(`rayven-prod-${slug}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+          loadProduct();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => {
+          loadProduct();
+        })
+        .subscribe();
 
-        // Fetch related kits
-        const related = await db.getProducts({ categorySlug: prod.category?.slug, limit: 4 });
-        setRelatedProducts(related.filter(r => r.id !== prod.id));
-      }
-      setIsLoading(false);
-    });
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
   }, [slug]);
 
   if (isLoading) {

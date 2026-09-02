@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/db';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Product, Category, Banner } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { useStore } from '../contexts/StoreContext';
@@ -20,12 +21,43 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [bestsellers, setBestsellers] = useState<Product[]>([]);
   const [retroProducts, setRetroProducts] = useState<Product[]>([]);
 
+  const loadData = async () => {
+    try {
+      const [b, feat, arrivals, best, retro] = await Promise.all([
+        db.getBanners(),
+        db.getProducts({ featured: true, limit: 8 }),
+        db.getProducts({ newArrival: true, limit: 8 }),
+        db.getProducts({ bestseller: true, limit: 8 }),
+        db.getProducts({ version: 'retro', limit: 4 })
+      ]);
+      setBanners(b);
+      setFeaturedProducts(feat);
+      setNewArrivals(arrivals);
+      setBestsellers(best);
+      setRetroProducts(retro);
+    } catch (e) {
+      console.warn('Failed to load home data:', e);
+    }
+  };
+
   useEffect(() => {
-    db.getBanners().then(setBanners);
-    db.getProducts({ featured: true, limit: 8 }).then(setFeaturedProducts);
-    db.getProducts({ newArrival: true, limit: 8 }).then(setNewArrivals);
-    db.getProducts({ bestseller: true, limit: 8 }).then(setBestsellers);
-    db.getProducts({ version: 'retro', limit: 4 }).then(setRetroProducts);
+    loadData();
+
+    if (isSupabaseConfigured && supabase) {
+      const channel = supabase
+        .channel('rayven-homepage-sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+          loadData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, () => {
+          loadData();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
   }, []);
 
   const hero = settings.hero || {

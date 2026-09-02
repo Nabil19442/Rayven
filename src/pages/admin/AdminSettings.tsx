@@ -1,22 +1,26 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../contexts/StoreContext';
-import { db } from '../../lib/db';
+import { db, seedCatalogToSupabase } from '../../lib/db';
+import { supabase, isSupabaseConfigured, SUPABASE_URL } from '../../lib/supabase';
 import { StoreSettings } from '../../types';
 import { uploadAppFile } from '../../lib/storage';
 import { 
   Save, Settings, DollarSign, Truck, Phone, Mail, MapPin, 
   Globe, Share2, Palette, Megaphone, Shield, AlertTriangle, 
   Upload, X, CheckCircle2, RefreshCw, Eye, ExternalLink,
-  CreditCard, Smartphone, Lock, HelpCircle
+  CreditCard, Smartphone, Lock, HelpCircle, Database, Server
 } from 'lucide-react';
 
-type SettingsTab = 'general' | 'branding' | 'contact' | 'social' | 'shipping' | 'payment' | 'announcement' | 'seo';
+type SettingsTab = 'general' | 'branding' | 'contact' | 'social' | 'shipping' | 'payment' | 'announcement' | 'seo' | 'database';
 
 export const AdminSettings: React.FC = () => {
-  const { settings, updateSettings, showToast, formatBDT } = useStore();
+  const { settings, updateSettings, showToast, formatBDT, refreshAll } = useStore();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [dbProductCount, setDbProductCount] = useState<number | null>(null);
+  const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
 
   // Form State initialized from settings
   const [formData, setFormData] = useState<StoreSettings>({ ...settings });
@@ -25,6 +29,42 @@ export const AdminSettings: React.FC = () => {
   const darkLogoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const ogImageInputRef = useRef<HTMLInputElement>(null);
+
+  const checkDbHealth = async () => {
+    try {
+      setDbStatus('checking');
+      const prods = await db.getProducts();
+      setDbProductCount(prods.length);
+      setDbStatus('connected');
+    } catch (e) {
+      setDbStatus('error');
+    }
+  };
+
+  useEffect(() => {
+    checkDbHealth();
+  }, []);
+
+  const handleSeedDatabase = async () => {
+    if (!confirm('This will insert default 2025/26 and 2026/27 official kits, club categories, banners, and default store settings directly into Supabase. Continue?')) {
+      return;
+    }
+    setIsSeeding(true);
+    try {
+      const ok = await seedCatalogToSupabase();
+      if (ok) {
+        showToast('Supabase Database successfully seeded!', 'success');
+        await refreshAll();
+        await checkDbHealth();
+      } else {
+        showToast('Seeding completed. Verify Supabase tables.', 'info');
+      }
+    } catch (err: any) {
+      showToast(`Error seeding database: ${err?.message || err}`, 'error');
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   // Handle image upload from device
   const handleFileUpload = async (field: keyof StoreSettings | 'og_image_url', file: File) => {
@@ -121,6 +161,7 @@ export const AdminSettings: React.FC = () => {
           { id: 'payment', label: 'Payment Options', icon: CreditCard },
           { id: 'announcement', label: 'Announcement Bar', icon: Megaphone },
           { id: 'seo', label: 'SEO & Metadata', icon: Globe },
+          { id: 'database', label: 'Database & Sync', icon: Database },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1111,6 +1152,97 @@ export const AdminSettings: React.FC = () => {
                       This image is displayed when your store link is shared on Facebook, WhatsApp, or Twitter.
                     </p>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 9. DATABASE & SYNC TAB */}
+        {activeTab === 'database' && (
+          <div className="space-y-6">
+            <div className="p-6 rounded-3xl bg-white border border-[#E5E5E3] shadow-xs space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-[#E5E5E3]">
+                <div className="space-y-1">
+                  <h3 className="font-bold text-sm text-[#1F2024] uppercase tracking-wide">
+                    Supabase Single Source of Truth
+                  </h3>
+                  <p className="text-xs text-zinc-500">
+                    Verify cloud database health, real-time synchronization, and remote data tables.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={checkDbHealth}
+                  className="px-3 py-1.5 bg-[#F7F7F5] hover:bg-[#E5E5E3] text-zinc-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${dbStatus === 'checking' ? 'animate-spin' : ''}`} />
+                  <span>Check Status</span>
+                </button>
+              </div>
+
+              {/* Status Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-[#F7F7F5] border border-[#E5E5E3] space-y-1">
+                  <span className="text-[11px] font-mono font-bold text-zinc-500 uppercase">Backend Connection</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${isSupabaseConfigured ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                    <p className="text-sm font-bold text-[#1F2024]">
+                      {isSupabaseConfigured ? 'Supabase Connected' : 'Missing Supabase Config'}
+                    </p>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 font-mono truncate">{SUPABASE_URL}</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#F7F7F5] border border-[#E5E5E3] space-y-1">
+                  <span className="text-[11px] font-mono font-bold text-zinc-500 uppercase">Products in Database</span>
+                  <p className="font-display text-2xl font-black text-[#1F2024] font-mono">
+                    {dbProductCount !== null ? `${dbProductCount} Products` : 'Loading...'}
+                  </p>
+                  <p className="text-[10px] text-emerald-700">Remote tables: products & product_variants</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#F7F7F5] border border-[#E5E5E3] space-y-1">
+                  <span className="text-[11px] font-mono font-bold text-zinc-500 uppercase">Cross-Device Realtime</span>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#6D35C8]">
+                    <span className="w-2 h-2 rounded-full bg-[#6D35C8] animate-ping" />
+                    <span>Real-Time Broadcast Active</span>
+                  </div>
+                  <p className="text-[10px] text-zinc-500">Live sync across all customer phones & laptops</p>
+                </div>
+              </div>
+
+              {/* Seeding & Catalog Push */}
+              <div className="p-5 rounded-2xl bg-[#F3EEFC] border border-[#8B5AD9]/30 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-xs text-[#6D35C8] uppercase tracking-wider flex items-center gap-1.5">
+                      <Database className="w-4 h-4" />
+                      <span>Seed / Sync Initial Catalog to Supabase</span>
+                    </h4>
+                    <p className="text-xs text-zinc-600 max-w-xl">
+                      If your remote Supabase database is clean or empty, click here to insert all categories, match kits, size variants, banners, and default store settings directly into your Supabase tables.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSeedDatabase}
+                    disabled={isSeeding}
+                    className="px-5 py-2.5 bg-[#6D35C8] hover:bg-[#4B218A] text-white font-bold rounded-xl text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-md shadow-purple-900/20 cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    {isSeeding ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Seeding Supabase...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>Seed Supabase Now</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

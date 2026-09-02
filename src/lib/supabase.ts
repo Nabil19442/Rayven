@@ -11,6 +11,9 @@ const rawKey = (typeof import.meta !== 'undefined' && (import.meta as any).env?.
 const supabaseUrl = rawUrl.trim();
 const supabaseAnonKey = rawKey.trim();
 
+export const SUPABASE_URL = supabaseUrl;
+export const SUPABASE_ANON_KEY = supabaseAnonKey;
+
 export const isSupabaseConfigured = Boolean(
   sharedSupabase || (
     supabaseUrl && 

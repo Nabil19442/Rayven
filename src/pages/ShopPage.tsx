@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/db';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Product, JerseySize, JerseyVersion } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { useStore } from '../contexts/StoreContext';
@@ -56,6 +57,25 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   useEffect(() => {
     loadProducts();
   }, [selectedCategory, selectedVersion, inStockOnly, sortBy]);
+
+  // Handle Real-time inventory and catalog updates from Supabase
+  useEffect(() => {
+    if (isSupabaseConfigured && supabase) {
+      const channel = supabase
+        .channel('rayven-shop-sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+          loadProducts();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => {
+          loadProducts();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [selectedCategory, selectedVersion, inStockOnly, sortBy, searchQuery]);
 
   // Handle Search Debounce
   useEffect(() => {
