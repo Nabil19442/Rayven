@@ -1671,15 +1671,21 @@ export const db = {
           meta_description: prod.meta_description || ''
         };
 
-        const { error: pErr } = await supabase.from('products').upsert(prodRow, { onConflict: 'slug' });
+        const { data: insertedProd, error: pErr } = await supabase
+          .from('products')
+          .upsert(prodRow, { onConflict: 'slug' })
+          .select('id')
+          .single();
+
         if (!pErr) {
           seededProductsCount++;
+          const effectiveProdId = insertedProd?.id || prodUuid;
 
           // Insert variants
           const standardSizes: JerseySize[] = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
           const variantsToInsert = standardSizes.map(sz => ({
             id: generateUuid(),
-            product_id: prodUuid,
+            product_id: effectiveProdId,
             size: sz,
             stock_quantity: 15,
             sku: `${prodRow.sku}-${sz}`,
@@ -1691,67 +1697,98 @@ export const db = {
       }
 
       // 3. Seed Banners
-      for (const banner of initialBanners) {
-        await supabase.from('banners').upsert({
-          id: generateUuid(),
-          title: banner.title,
-          subtitle: banner.subtitle || '',
-          badge_text: banner.badge_text || banner.tag || 'NEW DROP',
-          cta_text: banner.cta_text || banner.button_text || 'SHOP NOW',
-          cta_link: banner.cta_link || banner.link_url || '/shop',
-          image_url: banner.image_url,
-          display_order: Number(banner.display_order || banner.sort_order) || 0,
-          is_active: true
-        });
+      try {
+        for (const banner of initialBanners) {
+          await supabase.from('banners').upsert({
+            id: generateUuid(),
+            title: banner.title,
+            subtitle: banner.subtitle || '',
+            badge_text: banner.badge_text || banner.tag || 'NEW DROP',
+            cta_text: banner.cta_text || banner.button_text || 'SHOP NOW',
+            cta_link: banner.cta_link || banner.link_url || '/shop',
+            image_url: banner.image_url,
+            display_order: Number(banner.display_order || banner.sort_order) || 0,
+            is_active: true
+          });
+        }
+      } catch (bErr) {
+        console.warn('Seed banners notice:', bErr);
       }
 
       // 4. Seed Store Settings
-      await supabase.from('store_settings').upsert({
-        id: generateUuid(),
-        ...initialStoreSettings,
-        updated_at: new Date().toISOString()
-      });
+      try {
+        const storeSettingsPayload = {
+          id: generateUuid(),
+          store_name: initialStoreSettings.store_name,
+          store_tagline: initialStoreSettings.store_tagline,
+          logo_url: initialStoreSettings.logo_url,
+          phone: initialStoreSettings.phone,
+          email: initialStoreSettings.email,
+          announcement_bar: initialStoreSettings.announcement_bar,
+          inside_dhaka_delivery_fee: initialStoreSettings.inside_dhaka_delivery_fee,
+          outside_dhaka_delivery_fee: initialStoreSettings.outside_dhaka_delivery_fee,
+          free_shipping_threshold: initialStoreSettings.free_shipping_threshold,
+          currency_symbol: initialStoreSettings.currency_symbol,
+          order_prefix: initialStoreSettings.order_prefix,
+          updated_at: new Date().toISOString()
+        };
+        await supabase.from('store_settings').upsert(storeSettingsPayload);
+      } catch (sErr) {
+        console.warn('Seed store_settings notice:', sErr);
+      }
 
       // 5. Seed Coupons
-      for (const coupon of initialCoupons) {
-        await supabase.from('coupons').upsert({
-          id: generateUuid(),
-          code: coupon.code.toUpperCase(),
-          discount_type: coupon.discount_type || 'percentage',
-          discount_value: Number(coupon.discount_value) || 10,
-          min_order_amount: Number(coupon.min_order_amount ?? coupon.min_order_value) || 0,
-          max_discount_amount: coupon.max_discount_amount ? Number(coupon.max_discount_amount) : null,
-          start_date: new Date().toISOString(),
-          expiry_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 180).toISOString(),
-          usage_limit: Number(coupon.usage_limit) || 200,
-          used_count: 0,
-          is_active: true
-        }, { onConflict: 'code' });
+      try {
+        for (const coupon of initialCoupons) {
+          await supabase.from('coupons').upsert({
+            id: generateUuid(),
+            code: coupon.code.toUpperCase(),
+            discount_type: coupon.discount_type || 'percentage',
+            discount_value: Number(coupon.discount_value) || 10,
+            min_order_amount: Number(coupon.min_order_amount ?? coupon.min_order_value) || 0,
+            max_discount_amount: coupon.max_discount_amount ? Number(coupon.max_discount_amount) : null,
+            start_date: new Date().toISOString(),
+            expiry_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 180).toISOString(),
+            usage_limit: Number(coupon.usage_limit) || 200,
+            used_count: 0,
+            is_active: true
+          }, { onConflict: 'code' });
+        }
+      } catch (cErr) {
+        console.warn('Seed coupons notice:', cErr);
       }
 
       // 6. Seed FAQs
-      for (const faq of initialFAQs) {
-        await supabase.from('faq').upsert({
-          id: generateUuid(),
-          question: faq.question,
-          answer: faq.answer,
-          category: faq.category || 'General',
-          display_order: Number(faq.display_order) || 0,
-          is_published: true
-        });
+      try {
+        for (const faq of initialFAQs) {
+          await supabase.from('faq').upsert({
+            id: generateUuid(),
+            question: faq.question,
+            answer: faq.answer,
+            category: faq.category || 'General',
+            display_order: Number(faq.display_order) || 0,
+            is_published: true
+          });
+        }
+      } catch (fErr) {
+        console.warn('Seed FAQs notice:', fErr);
       }
 
       // 7. Seed CMS Pages
-      for (const page of initialCMSPages) {
-        await supabase.from('pages').upsert({
-          id: generateUuid(),
-          slug: page.slug,
-          title: page.title,
-          content: page.content,
-          meta_title: page.metadata?.meta_title || '',
-          meta_description: page.metadata?.meta_description || '',
-          is_published: true
-        }, { onConflict: 'slug' });
+      try {
+        for (const page of initialCMSPages) {
+          await supabase.from('pages').upsert({
+            id: generateUuid(),
+            slug: page.slug,
+            title: page.title,
+            content: page.content,
+            meta_title: page.metadata?.meta_title || '',
+            meta_description: page.metadata?.meta_description || '',
+            is_published: true
+          }, { onConflict: 'slug' });
+        }
+      } catch (pErr) {
+        console.warn('Seed pages notice:', pErr);
       }
 
       await db.logActivity('Admin User', 'admin', 'SEED_DATABASE', 'Complete 2026/27 football jersey catalog seeded to Supabase.', 'system');

@@ -30,7 +30,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         if (isSupabaseConfigured && supabase) {
           const { data: { session }, error } = await supabase.auth.getSession();
-          if (error) throw error;
+          if (error) {
+            console.warn('Supabase getSession notice:', error.message);
+          }
 
           if (session?.user) {
             // Fetch profile data and role from profiles table
@@ -38,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
 
             const role: UserRole = profile?.role || (session.user.user_metadata?.role as UserRole) || 'customer';
 
@@ -57,9 +59,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               db.setCurrentUser(userProfile);
             }
           } else {
-            // No active supabase session, check cached user if not an admin
+            // No active supabase session: invalidate any local admin session to ensure writes are authenticated
             const localUser = db.getCurrentUser();
-            if (isMounted) {
+            if (localUser && (localUser.role === 'admin' || localUser.role === 'super_admin')) {
+              if (isMounted) {
+                setUser(null);
+                db.setCurrentUser(null);
+              }
+            } else if (isMounted) {
               setUser(localUser);
             }
           }
@@ -76,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .from('profiles')
                 .select('*')
                 .eq('id', session.user.id)
-                .single();
+                .maybeSingle();
 
               const role: UserRole = profile?.role || (session.user.user_metadata?.role as UserRole) || 'customer';
               const userProfile: UserProfile = {
@@ -221,7 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .from('profiles')
             .select('*')
             .eq('id', data.user.id)
-            .single();
+            .maybeSingle();
 
           const role: UserRole = profile?.role || (data.user.user_metadata?.role as UserRole) || 'customer';
 
