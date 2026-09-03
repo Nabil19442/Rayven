@@ -302,20 +302,21 @@ export const db = {
     const slug = product.slug || generateSlug(product.name);
     const categoryId = isValidUuid(product.category_id) ? product.category_id : null;
 
+    // Database columns matching public.products table
     const dbPayload = {
       id: productId,
       name: product.name,
       slug,
-      team: product.team,
+      team: product.team || '',
       season: product.season || '2026/27',
       category_id: categoryId,
       description: product.description || '',
-      details: Array.isArray(product.details) ? product.details : ['100% Master Grade Quality', 'Official Matchday Fit'],
+      details: Array.isArray(product.details) ? product.details : (Array.isArray(product.features) ? product.features : ['100% Master Grade Quality', 'Official Matchday Fit']),
       price: Number(product.price) || 0,
       discount_price: product.discount_price !== undefined && product.discount_price !== null ? Number(product.discount_price) : null,
       sku: product.sku || `RAY-${Date.now().toString().slice(-6)}`,
-      product_type: product.product_type || 'jersey',
-      jersey_version: product.jersey_version || 'fan',
+      product_type: (['jersey', 'training', 'jacket', 'shorts', 'accessory'].includes(product.product_type || '') ? product.product_type : 'jersey'),
+      jersey_version: (['fan', 'player', 'retro', 'goalkeeper'].includes(product.jersey_version || '') ? product.jersey_version : 'fan'),
       is_featured: Boolean(product.is_featured),
       is_new_arrival: product.is_new_arrival !== undefined ? Boolean(product.is_new_arrival) : true,
       is_bestseller: Boolean(product.is_bestseller),
@@ -323,8 +324,8 @@ export const db = {
       images: Array.isArray(product.images) && product.images.length > 0 
         ? product.images 
         : ['https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1000&q=85'],
-      specifications: product.specifications || { 'Material': '100% Recycled Polyester HEAT.RDY', 'Fit': 'Athlete Fit' },
-      size_guide: product.size_guide || {
+      specifications: (product.specifications && typeof product.specifications === 'object') ? product.specifications : { 'Material': '100% Recycled Polyester HEAT.RDY', 'Fit': 'Athlete Fit' },
+      size_guide: (product.size_guide && typeof product.size_guide === 'object') ? product.size_guide : {
         'S': { chest: '36-38 in', length: '27 in' },
         'M': { chest: '38-40 in', length: '28 in' },
         'L': { chest: '40-42 in', length: '29 in' },
@@ -333,8 +334,6 @@ export const db = {
       },
       rating_avg: Number(product.rating_avg || product.rating) || 5.0,
       review_count: Number(product.review_count) || 0,
-      meta_title: product.meta_title || '',
-      meta_description: product.meta_description || '',
       updated_at: new Date().toISOString(),
     };
 
@@ -364,8 +363,8 @@ export const db = {
     const variantRows = rawVariants.map(v => ({
       id: isValidUuid(v.id) ? v.id : generateUuid(),
       product_id: productId,
-      size: v.size,
-      stock_quantity: Math.max(0, Number(v.stock_quantity) || 0),
+      size: (standardSizes.includes(v.size as JerseySize) ? v.size : 'M') as JerseySize,
+      stock_quantity: Math.max(0, Math.round(Number(v.stock_quantity) || 0)),
       sku: v.sku || `${dbPayload.sku}-${v.size}`,
       price_adjustment: Number(v.price_adjustment) || 0
     }));
@@ -381,8 +380,11 @@ export const db = {
     await db.logActivity('Admin User', 'admin', 'SAVE_PRODUCT', `Product "${dbPayload.name}" saved in Supabase.`, 'products', productId);
 
     // Fetch and return true single-source-of-truth product from Supabase
-    const fresh = await db.getProductBySlug(slug);
+    const fresh = await db.getProductBySlug(productId);
     if (fresh) return fresh;
+
+    const freshBySlug = await db.getProductBySlug(slug);
+    if (freshBySlug) return freshBySlug;
 
     return formatProductFromDb({ ...dbPayload, variants: variantRows });
   },
@@ -402,17 +404,13 @@ export const db = {
     }
 
     const current = await db.getProductBySlug(productId);
-    if (!current) {
-      throw new Error(`Product with ID ${productId} not found in Supabase.`);
-    }
-
     const merged = {
-      ...current,
+      ...(current || {}),
       ...updates,
       id: productId,
-      name: updates.name || current.name,
-      price: updates.price !== undefined ? Number(updates.price) : current.price,
-      team: updates.team || current.team,
+      name: updates.name || current?.name || 'Football Jersey',
+      price: updates.price !== undefined ? Number(updates.price) : (current?.price || 1650),
+      team: updates.team || current?.team || 'Club',
     };
 
     return db.saveProduct(merged);
@@ -572,8 +570,18 @@ export const db = {
         if (!error && !data) {
           const defaultId = generateUuid();
           const toInsert = {
-            ...initialStoreSettings,
             id: defaultId,
+            store_name: initialStoreSettings.store_name,
+            store_tagline: initialStoreSettings.store_tagline,
+            logo_url: initialStoreSettings.logo_url,
+            phone: initialStoreSettings.phone,
+            email: initialStoreSettings.email,
+            announcement_bar: initialStoreSettings.announcement_bar,
+            inside_dhaka_delivery_fee: initialStoreSettings.inside_dhaka_delivery_fee,
+            outside_dhaka_delivery_fee: initialStoreSettings.outside_dhaka_delivery_fee,
+            free_shipping_threshold: initialStoreSettings.free_shipping_threshold,
+            currency_symbol: initialStoreSettings.currency_symbol,
+            order_prefix: initialStoreSettings.order_prefix,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -583,7 +591,7 @@ export const db = {
             .select()
             .single();
 
-          if (inserted) return inserted as StoreSettings;
+          if (inserted) return { ...initialStoreSettings, ...inserted } as StoreSettings;
         }
       } catch (e) {
         // Fall back to initial settings
@@ -599,16 +607,27 @@ export const db = {
 
     const current = await db.getStoreSettings();
     const id = isValidUuid(current.id) ? current.id : generateUuid();
-    const updated = {
-      ...current,
-      ...settings,
+
+    // Clean payload containing ONLY columns in public.store_settings
+    const dbPayload = {
       id,
+      store_name: settings.store_name !== undefined ? settings.store_name : current.store_name,
+      store_tagline: settings.store_tagline !== undefined ? settings.store_tagline : current.store_tagline,
+      logo_url: settings.logo_url !== undefined ? settings.logo_url : current.logo_url,
+      phone: settings.phone !== undefined ? settings.phone : (settings.support_phone !== undefined ? settings.support_phone : current.phone),
+      email: settings.email !== undefined ? settings.email : (settings.support_email !== undefined ? settings.support_email : current.email),
+      announcement_bar: settings.announcement_bar !== undefined ? settings.announcement_bar : current.announcement_bar,
+      inside_dhaka_delivery_fee: Number(settings.inside_dhaka_delivery_fee !== undefined ? settings.inside_dhaka_delivery_fee : current.inside_dhaka_delivery_fee) || 70,
+      outside_dhaka_delivery_fee: Number(settings.outside_dhaka_delivery_fee !== undefined ? settings.outside_dhaka_delivery_fee : current.outside_dhaka_delivery_fee) || 130,
+      free_shipping_threshold: Number(settings.free_shipping_threshold !== undefined ? settings.free_shipping_threshold : current.free_shipping_threshold) || 3000,
+      currency_symbol: settings.currency_symbol !== undefined ? settings.currency_symbol : current.currency_symbol,
+      order_prefix: settings.order_prefix !== undefined ? settings.order_prefix : current.order_prefix,
       updated_at: new Date().toISOString()
     };
 
     const { data, error } = await supabase
       .from('store_settings')
-      .upsert(updated)
+      .upsert(dbPayload)
       .select()
       .single();
 
@@ -618,7 +637,12 @@ export const db = {
     }
 
     await db.logActivity('Admin User', 'admin', 'UPDATE_SETTINGS', 'Store branding, delivery fees, and CMS settings updated.', 'settings', id);
-    return (data || updated) as StoreSettings;
+    
+    return {
+      ...current,
+      ...settings,
+      ...(data || dbPayload)
+    } as StoreSettings;
   },
 
   async updateSettings(settings: Partial<StoreSettings>): Promise<StoreSettings> {

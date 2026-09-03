@@ -38,21 +38,31 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
 
   const handleDelete = async (product: Product) => {
     if (confirm(`Are you sure you want to delete "${product.name}"?`)) {
-      const ok = await db.deleteProduct(product.id);
-      if (ok) {
-        showToast('Product deleted from inventory', 'info');
-        setProducts(products.filter(p => p.id !== product.id));
+      try {
+        const ok = await db.deleteProduct(product.id);
+        if (ok) {
+          showToast('Product deleted from inventory', 'info');
+          setProducts(products.filter(p => p.id !== product.id));
+        }
+      } catch (err: any) {
+        console.error('Delete product error:', err);
+        showToast(err?.message || 'Failed to delete product', 'error');
       }
     }
   };
 
   const handleToggleFlag = async (product: Product, field: 'is_featured' | 'is_bestseller' | 'is_new_arrival') => {
-    const updated = await db.updateProduct(product.id, {
-      [field]: !product[field]
-    });
-    if (updated) {
-      setProducts(products.map(p => p.id === product.id ? updated : p));
-      showToast(`Updated ${field.replace('is_', '')} badge`, 'success');
+    try {
+      const updated = await db.updateProduct(product.id, {
+        [field]: !product[field]
+      });
+      if (updated) {
+        setProducts(products.map(p => p.id === product.id ? updated : p));
+        showToast(`Updated ${field.replace('is_', '')} badge`, 'success');
+      }
+    } catch (err: any) {
+      console.error('Update flag error:', err);
+      showToast(err?.message || 'Failed to update badge', 'error');
     }
   };
 

@@ -24,22 +24,32 @@ export const AdminCategories: React.FC = () => {
       is_active: true
     };
 
-    const created = await db.createCategory(payload);
-    if (created) {
-      setCategories([...categories, created]);
-      setIsCreating(false);
-      setName('');
-      setSlug('');
-      setDescription('');
-      showToast('Category created!', 'success');
+    try {
+      const created = await db.createCategory(payload);
+      if (created) {
+        setCategories([...categories, created]);
+        setIsCreating(false);
+        setName('');
+        setSlug('');
+        setDescription('');
+        showToast('Category created!', 'success');
+      }
+    } catch (err: any) {
+      console.error('Create category error:', err);
+      showToast(err?.message || 'Failed to create category', 'error');
     }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Delete this category?')) {
-      await db.deleteCategory(id);
-      setCategories(categories.filter(c => c.id !== id));
-      showToast('Category deleted', 'info');
+      try {
+        await db.deleteCategory(id);
+        setCategories(categories.filter(c => c.id !== id));
+        showToast('Category deleted', 'info');
+      } catch (err: any) {
+        console.error('Delete category error:', err);
+        showToast(err?.message || 'Failed to delete category', 'error');
+      }
     }
   };
 

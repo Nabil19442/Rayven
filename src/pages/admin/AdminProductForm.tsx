@@ -215,16 +215,21 @@ export const AdminProductForm: React.FC<AdminProductFormProps> = ({
       review_count: productToEdit?.review_count || 0
     };
 
-    if (productToEdit) {
-      await db.updateProduct(productToEdit.id, payload);
-      showToast('Football jersey updated successfully!', 'success');
-    } else {
-      await db.createProduct(payload);
-      showToast('New football jersey added to catalog!', 'success');
+    try {
+      if (productToEdit) {
+        await db.updateProduct(productToEdit.id, payload);
+        showToast('Football jersey updated successfully!', 'success');
+      } else {
+        await db.createProduct(payload);
+        showToast('New football jersey added to catalog!', 'success');
+      }
+      setIsSubmitting(false);
+      onSaved();
+    } catch (err: any) {
+      console.error('Save product error:', err);
+      showToast(err?.message || 'Failed to save product in database', 'error');
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
-    onSaved();
   };
 
   return (
