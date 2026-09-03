@@ -2,6 +2,8 @@ import React, { useState, useRef } from 'react';
 import { db } from '../../lib/db';
 import { Product, JerseyVersion, KitType, JerseySize } from '../../types';
 import { useStore } from '../../contexts/StoreContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../supabaseClient';
 import { uploadAppFile, deleteAppFile, validateImageFile } from '../../lib/storage';
 import { 
   ArrowLeft, Plus, Trash2, Save, Upload, Star, MoveLeft, MoveRight, 
@@ -20,6 +22,7 @@ export const AdminProductForm: React.FC<AdminProductFormProps> = ({
   onSaved 
 }) => {
   const { categories, showToast } = useStore();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(productToEdit?.name || '');
@@ -215,6 +218,11 @@ export const AdminProductForm: React.FC<AdminProductFormProps> = ({
       review_count: productToEdit?.review_count || 0
     };
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log("[CRUD DEBUG] current user:", user);
+    console.log("[CRUD DEBUG] session:", sessionData?.session);
+    console.log("[CRUD DEBUG] product payload:", payload);
+
     try {
       if (productToEdit) {
         await db.updateProduct(productToEdit.id, payload);
@@ -226,7 +234,7 @@ export const AdminProductForm: React.FC<AdminProductFormProps> = ({
       setIsSubmitting(false);
       onSaved();
     } catch (err: any) {
-      console.error('Save product error:', err);
+      console.error('[CRUD DEBUG] Save product caught error:', err);
       showToast(err?.message || 'Failed to save product in database', 'error');
       setIsSubmitting(false);
     }

@@ -302,7 +302,7 @@ export const db = {
     const slug = product.slug || generateSlug(product.name);
     const categoryId = isValidUuid(product.category_id) ? product.category_id : null;
 
-    // Database columns matching public.products table
+    // Database columns matching public.products table exactly
     const dbPayload = {
       id: productId,
       name: product.name,
@@ -337,13 +337,22 @@ export const db = {
       updated_at: new Date().toISOString(),
     };
 
+    console.log('[CRUD DEBUG] product payload:', dbPayload);
+
     // 1. Upsert Product Row into Supabase
-    const { error: prodErr } = await supabase
+    const { data: prodData, error: prodErr } = await supabase
       .from('products')
-      .upsert(dbPayload, { onConflict: 'id' });
+      .upsert(dbPayload, { onConflict: 'id' })
+      .select('*');
+
+    console.log('[CRUD DEBUG] result data:', prodData);
+    console.log('[CRUD DEBUG] result error:', prodErr);
 
     if (prodErr) {
-      console.error('Supabase save product error:', prodErr);
+      console.error('[CRUD DEBUG] error.code:', prodErr.code);
+      console.error('[CRUD DEBUG] error.message:', prodErr.message);
+      console.error('[CRUD DEBUG] error.details:', prodErr.details);
+      console.error('[CRUD DEBUG] error.hint:', prodErr.hint);
       throw new Error(`Failed to save product in Supabase: ${prodErr.message}`);
     }
 
@@ -369,12 +378,13 @@ export const db = {
       price_adjustment: Number(v.price_adjustment) || 0
     }));
 
-    const { error: varErr } = await supabase
+    const { data: varData, error: varErr } = await supabase
       .from('product_variants')
-      .upsert(variantRows, { onConflict: 'product_id,size' });
+      .upsert(variantRows, { onConflict: 'product_id,size' })
+      .select('*');
 
     if (varErr) {
-      console.warn('Supabase product_variants upsert warning:', varErr.message);
+      console.warn('[CRUD DEBUG] product_variants upsert warning:', varErr.message);
     }
 
     await db.logActivity('Admin User', 'admin', 'SAVE_PRODUCT', `Product "${dbPayload.name}" saved in Supabase.`, 'products', productId);
@@ -421,14 +431,25 @@ export const db = {
       throw new Error('Supabase is not configured.');
     }
 
+    console.log('[CRUD DEBUG] deleteProduct target ID:', productId);
+
     // Delete variants first
-    await supabase.from('product_variants').delete().eq('product_id', productId);
+    const { error: varDelErr } = await supabase.from('product_variants').delete().eq('product_id', productId);
+    if (varDelErr) {
+      console.warn('[CRUD DEBUG] delete variants error:', varDelErr);
+    }
     
     // Delete product
-    const { error } = await supabase.from('products').delete().eq('id', productId);
-    if (error) {
-      console.error('Supabase deleteProduct error:', error);
-      throw new Error(`Failed to delete product from Supabase: ${error.message}`);
+    const { data: delData, error: delErr } = await supabase.from('products').delete().eq('id', productId).select('*');
+    console.log('[CRUD DEBUG] delete product result data:', delData);
+    console.log('[CRUD DEBUG] delete product result error:', delErr);
+
+    if (delErr) {
+      console.error('[CRUD DEBUG] delete error.code:', delErr.code);
+      console.error('[CRUD DEBUG] delete error.message:', delErr.message);
+      console.error('[CRUD DEBUG] delete error.details:', delErr.details);
+      console.error('[CRUD DEBUG] delete error.hint:', delErr.hint);
+      throw new Error(`Failed to delete product from Supabase: ${delErr.message}`);
     }
 
     await db.logActivity('Admin User', 'admin', 'DELETE_PRODUCT', `Product ID ${productId} deleted from Supabase.`, 'products', productId);
