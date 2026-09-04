@@ -71,7 +71,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const refreshCategories = async () => {
     try {
       const cats = await db.getCategories();
-      if (cats && cats.length > 0) {
+      if (cats) {
         setCategories(cats);
       }
     } catch (e) {
@@ -82,7 +82,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const refreshFAQs = async () => {
     try {
       const items = await db.getFAQs();
-      if (items && items.length > 0) setFaqs(items);
+      if (items) setFaqs(items);
     } catch (e) {
       console.warn('Failed refreshing FAQs:', e);
     }
@@ -91,7 +91,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const refreshPages = async () => {
     try {
       const p = await db.getCMSPages();
-      if (p && p.length > 0) setPages(p);
+      if (p) setPages(p);
     } catch (e) {
       console.warn('Failed refreshing CMS pages:', e);
     }

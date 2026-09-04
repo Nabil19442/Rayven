@@ -226,11 +226,11 @@ export const db = {
         if (!isSchemaOrTableMissing(error)) {
           console.warn('Supabase getProducts notice:', error.message);
         }
-        return initialProducts;
+        return [];
       }
 
       if (!data || data.length === 0) {
-        return initialProducts;
+        return [];
       }
 
       let formatted = data.map(formatProductFromDb);
@@ -256,13 +256,14 @@ export const db = {
 
       return formatted;
     } catch (err: any) {
-      return initialProducts;
+      console.warn('getProducts error:', err);
+      return [];
     }
   },
 
   async getProductBySlug(slug: string): Promise<Product | null> {
     if (!isSupabaseConfigured || !supabase) {
-      return initialProducts.find(p => p.slug === slug || p.id === slug) || null;
+      return null;
     }
 
     try {
@@ -281,15 +282,16 @@ export const db = {
         if (!isSchemaOrTableMissing(error)) {
           console.warn('Supabase getProductBySlug notice:', error.message);
         }
-        return initialProducts.find(p => p.slug === slug || p.id === slug) || null;
+        return null;
       }
 
       if (!data) {
-        return initialProducts.find(p => p.slug === slug || p.id === slug) || null;
+        return null;
       }
       return formatProductFromDb(data);
     } catch (e) {
-      return initialProducts.find(p => p.slug === slug || p.id === slug) || null;
+      console.warn('getProductBySlug error:', e);
+      return null;
     }
   },
 
@@ -488,7 +490,7 @@ export const db = {
   // CATEGORIES (SUPABASE DIRECT)
   // ----------------------------------------------------
   async getCategories(): Promise<Category[]> {
-    if (!isSupabaseConfigured || !supabase) return initialCategories;
+    if (!isSupabaseConfigured || !supabase) return [];
 
     try {
       const { data, error } = await supabase
@@ -500,11 +502,11 @@ export const db = {
         if (!isSchemaOrTableMissing(error)) {
           console.warn('Supabase getCategories notice:', error.message);
         }
-        return initialCategories;
+        return [];
       }
-      return (data && data.length > 0) ? (data as Category[]) : initialCategories;
+      return (data && data.length > 0) ? (data as Category[]) : [];
     } catch (e) {
-      return initialCategories;
+      return [];
     }
   },
 
@@ -674,7 +676,7 @@ export const db = {
   // BANNERS (SUPABASE DIRECT)
   // ----------------------------------------------------
   async getBanners(): Promise<Banner[]> {
-    if (!isSupabaseConfigured || !supabase) return initialBanners;
+    if (!isSupabaseConfigured || !supabase) return [];
 
     try {
       const { data, error } = await supabase
@@ -686,11 +688,11 @@ export const db = {
         if (!isSchemaOrTableMissing(error)) {
           console.warn('Supabase getBanners notice:', error.message);
         }
-        return initialBanners;
+        return [];
       }
-      return (data && data.length > 0) ? (data as Banner[]) : initialBanners;
+      return (data && data.length > 0) ? (data as Banner[]) : [];
     } catch (e) {
-      return initialBanners;
+      return [];
     }
   },
 
@@ -758,7 +760,7 @@ export const db = {
   // COUPONS (SUPABASE DIRECT)
   // ----------------------------------------------------
   async getCoupons(): Promise<Coupon[]> {
-    if (!isSupabaseConfigured || !supabase) return initialCoupons;
+    if (!isSupabaseConfigured || !supabase) return [];
 
     try {
       const { data, error } = await supabase
@@ -770,11 +772,11 @@ export const db = {
         if (!isSchemaOrTableMissing(error)) {
           console.warn('Supabase getCoupons notice:', error.message);
         }
-        return initialCoupons;
+        return [];
       }
-      return (data && data.length > 0) ? (data as Coupon[]) : initialCoupons;
+      return (data && data.length > 0) ? (data as Coupon[]) : [];
     } catch (e) {
-      return initialCoupons;
+      return [];
     }
   },
 
@@ -1247,7 +1249,7 @@ export const db = {
   // ----------------------------------------------------
   async getFAQs(activeOnly = false): Promise<FAQItem[]> {
     if (!isSupabaseConfigured || !supabase) {
-      return activeOnly ? initialFAQs.filter(f => f.is_active !== false) : initialFAQs;
+      return [];
     }
 
     try {
@@ -1265,7 +1267,7 @@ export const db = {
         if (!isSchemaOrTableMissing(error)) {
           console.warn('Supabase getFAQs notice:', error.message);
         }
-        return activeOnly ? initialFAQs.filter(f => f.is_active !== false) : initialFAQs;
+        return [];
       }
       const mapped = (data || []).map((f: any) => ({
         ...f,
@@ -1273,9 +1275,9 @@ export const db = {
         is_published: f.is_published ?? f.is_active ?? true
       })) as FAQItem[];
 
-      return mapped.length > 0 ? mapped : (activeOnly ? initialFAQs.filter(f => f.is_active !== false) : initialFAQs);
+      return mapped;
     } catch (e) {
-      return activeOnly ? initialFAQs.filter(f => f.is_active !== false) : initialFAQs;
+      return [];
     }
   },
 
@@ -1326,7 +1328,7 @@ export const db = {
   // CMS PAGES (SUPABASE DIRECT)
   // ----------------------------------------------------
   async getCMSPages(): Promise<CMSPage[]> {
-    if (!isSupabaseConfigured || !supabase) return initialCMSPages;
+    if (!isSupabaseConfigured || !supabase) return [];
 
     try {
       const { data, error } = await supabase.from('pages').select('*');
@@ -1334,17 +1336,17 @@ export const db = {
         if (!isSchemaOrTableMissing(error)) {
           console.warn('Supabase getCMSPages notice:', error.message);
         }
-        return initialCMSPages;
+        return [];
       }
-      return (data && data.length > 0) ? (data as CMSPage[]) : initialCMSPages;
+      return (data && data.length > 0) ? (data as CMSPage[]) : [];
     } catch (e) {
-      return initialCMSPages;
+      return [];
     }
   },
 
   async getCMSPage(slug: string): Promise<CMSPage | null> {
     if (!isSupabaseConfigured || !supabase) {
-      return initialCMSPages.find(p => p.slug === slug) || null;
+      return null;
     }
 
     try {
@@ -1355,11 +1357,11 @@ export const db = {
         .maybeSingle();
 
       if (error || !data) {
-        return initialCMSPages.find(p => p.slug === slug) || null;
+        return null;
       }
       return data as CMSPage;
     } catch (e) {
-      return initialCMSPages.find(p => p.slug === slug) || null;
+      return null;
     }
   },
 
@@ -1397,7 +1399,7 @@ export const db = {
   // CONTACT MESSAGES (SUPABASE DIRECT)
   // ----------------------------------------------------
   async getContactMessages(): Promise<ContactMessage[]> {
-    if (!isSupabaseConfigured || !supabase) return initialContactMessages;
+    if (!isSupabaseConfigured || !supabase) return [];
 
     try {
       const { data, error } = await supabase
@@ -1409,11 +1411,11 @@ export const db = {
         if (!isSchemaOrTableMissing(error)) {
           console.warn('Supabase getContactMessages notice:', error.message);
         }
-        return initialContactMessages;
+        return [];
       }
-      return (data && data.length > 0) ? (data as ContactMessage[]) : initialContactMessages;
+      return (data && data.length > 0) ? (data as ContactMessage[]) : [];
     } catch (e) {
-      return initialContactMessages;
+      return [];
     }
   },
 
@@ -1477,7 +1479,7 @@ export const db = {
   // NEWSLETTER SUBSCRIBERS (SUPABASE DIRECT)
   // ----------------------------------------------------
   async getNewsletterSubscribers(): Promise<NewsletterSubscriber[]> {
-    if (!isSupabaseConfigured || !supabase) return initialSubscribers;
+    if (!isSupabaseConfigured || !supabase) return [];
 
     try {
       const { data, error } = await supabase
@@ -1489,14 +1491,14 @@ export const db = {
         if (!isSchemaOrTableMissing(error)) {
           console.warn('Supabase getNewsletterSubscribers notice:', error.message);
         }
-        return initialSubscribers;
+        return [];
       }
       return (data && data.length > 0) ? (data.map((s: any) => ({
         ...s,
         status: s.is_active !== false ? 'active' : 'unsubscribed'
-      })) as NewsletterSubscriber[]) : initialSubscribers;
+      })) as NewsletterSubscriber[]) : [];
     } catch (e) {
-      return initialSubscribers;
+      return [];
     }
   },
 

@@ -62,6 +62,8 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
       // Fetch related kits
       const related = await db.getProducts({ categorySlug: prod.category?.slug, limit: 4 });
       setRelatedProducts(related.filter(r => r.id !== prod.id));
+    } else {
+      setProduct(null);
     }
     setIsLoading(false);
   };
