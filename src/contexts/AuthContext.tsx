@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .from('profiles')
               .select('id,email,role,full_name,phone,avatar_url,created_at')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
 
             if (profile && !profileErr) {
               const role: UserRole = profile.role as UserRole;
@@ -85,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .from('profiles')
                 .select('id,email,role,full_name,phone,avatar_url,created_at')
                 .eq('id', session.user.id)
-                .single();
+                .maybeSingle();
 
               if (profile) {
                 const role: UserRole = profile.role as UserRole;
@@ -244,7 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .select('id,email,role')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (profileError || !profile) {
         await supabase.auth.signOut();
