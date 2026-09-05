@@ -308,6 +308,14 @@ export const db = {
       throw new Error('Supabase database is not configured. Please check your credentials.');
     }
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error('Admin Supabase session is missing. Please log in again.');
+    }
+
     const productId = isValidUuid(product.id) ? product.id! : generateUuid();
     const slug = product.slug || generateSlug(product.name);
     const categoryId = isValidUuid(product.category_id) ? product.category_id : null;
@@ -423,6 +431,14 @@ export const db = {
       throw new Error('Supabase database is not configured.');
     }
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error('Admin Supabase session is missing. Please log in again.');
+    }
+
     const current = await db.getProductBySlug(productId);
     const merged = {
       ...(current || {}),
@@ -439,6 +455,14 @@ export const db = {
   async deleteProduct(productId: string): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) {
       throw new Error('Supabase is not configured.');
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error('Admin Supabase session is missing. Please log in again.');
     }
 
     console.log('[CRUD DEBUG] deleteProduct target ID:', productId);
@@ -523,6 +547,14 @@ export const db = {
       throw new Error('Supabase is not configured.');
     }
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error('Admin Supabase session is missing. Please log in again.');
+    }
+
     const catId = isValidUuid(cat.id) ? cat.id! : generateUuid();
     const slug = cat.slug || generateSlug(cat.name);
     const row = {
@@ -567,6 +599,14 @@ export const db = {
 
   async deleteCategory(id: string): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) throw new Error('Supabase is not configured.');
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error('Admin Supabase session is missing. Please log in again.');
+    }
 
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (error) {

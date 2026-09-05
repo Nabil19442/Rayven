@@ -19,7 +19,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(() => db.getCurrentUser());
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Initialize and synchronize authentication session
@@ -36,44 +36,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (session?.user) {
             // Fetch profile data and role from profiles table
-            const { data: profile } = await supabase
+            const { data: profile, error: profileErr } = await supabase
               .from('profiles')
-              .select('*')
+              .select('id,email,role,full_name,phone,avatar_url,created_at')
               .eq('id', session.user.id)
-              .maybeSingle();
+              .single();
 
-            const role: UserRole = profile?.role || (session.user.user_metadata?.role as UserRole) || 'customer';
+            if (profile && !profileErr) {
+              const role: UserRole = profile.role as UserRole;
+              const userProfile: UserProfile = {
+                id: session.user.id,
+                email: session.user.email || profile.email || '',
+                full_name: profile.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+                phone: profile.phone || session.user.user_metadata?.phone || '',
+                role,
+                avatar_url: profile.avatar_url || session.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
+                created_at: profile.created_at || session.user.created_at || new Date().toISOString(),
+              };
 
-            const userProfile: UserProfile = {
-              id: session.user.id,
-              email: session.user.email || '',
-              full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-              phone: profile?.phone || session.user.user_metadata?.phone || '',
-              role,
-              avatar_url: profile?.avatar_url || session.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
-              created_at: session.user.created_at || new Date().toISOString(),
-            };
-
-            if (isMounted) {
-              setUser(userProfile);
-              db.setCurrentUser(userProfile);
-            }
-          } else {
-            // No active supabase session: invalidate any local admin session to ensure writes are authenticated
-            const localUser = db.getCurrentUser();
-            if (localUser && (localUser.role === 'admin' || localUser.role === 'super_admin')) {
+              if (isMounted) {
+                setUser(userProfile);
+                db.setCurrentUser(userProfile);
+              }
+            } else {
+              // Profile not found in database: clear session
               if (isMounted) {
                 setUser(null);
                 db.setCurrentUser(null);
               }
-            } else if (isMounted) {
-              setUser(localUser);
+            }
+          } else {
+            // No active session: ensure state is cleared (no fake session restoration)
+            if (isMounted) {
+              setUser(null);
+              db.setCurrentUser(null);
             }
           }
 
           // Listen to Supabase auth events
           const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_OUT' || !session) {
+            if (event === 'SIGNED_OUT' || !session?.user) {
               if (isMounted) {
                 setUser(null);
                 db.setCurrentUser(null);
@@ -81,38 +83,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else if (session?.user) {
               const { data: profile } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('id,email,role,full_name,phone,avatar_url,created_at')
                 .eq('id', session.user.id)
-                .maybeSingle();
+                .single();
 
-              const role: UserRole = profile?.role || (session.user.user_metadata?.role as UserRole) || 'customer';
-              const userProfile: UserProfile = {
-                id: session.user.id,
-                email: session.user.email || '',
-                full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-                phone: profile?.phone || session.user.user_metadata?.phone || '',
-                role,
-                avatar_url: profile?.avatar_url || session.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
-                created_at: session.user.created_at || new Date().toISOString(),
-              };
+              if (profile) {
+                const role: UserRole = profile.role as UserRole;
+                const userProfile: UserProfile = {
+                  id: session.user.id,
+                  email: session.user.email || profile.email || '',
+                  full_name: profile.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+                  phone: profile.phone || session.user.user_metadata?.phone || '',
+                  role,
+                  avatar_url: profile.avatar_url || session.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
+                  created_at: profile.created_at || session.user.created_at || new Date().toISOString(),
+                };
 
-              if (isMounted) {
-                setUser(userProfile);
-                db.setCurrentUser(userProfile);
+                if (isMounted) {
+                  setUser(userProfile);
+                  db.setCurrentUser(userProfile);
+                }
+              } else {
+                if (isMounted) {
+                  setUser(null);
+                  db.setCurrentUser(null);
+                }
               }
             }
           });
 
           return () => subscription.unsubscribe();
         } else {
-          // Supabase is not configured, load persistent user if any
-          const localUser = db.getCurrentUser();
           if (isMounted) {
-            setUser(localUser);
+            setUser(null);
+            db.setCurrentUser(null);
           }
         }
       } catch (err) {
         console.warn('Auth initialization check error:', err);
+        if (isMounted) {
+          setUser(null);
+          db.setCurrentUser(null);
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -200,96 +212,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /**
    * Admin-Only Secure Login
-   * Verifies credentials and strictly ensures role is 'admin' or 'super_admin'.
+   * Uses Supabase auth.signInWithPassword, validates session, and queries profiles for admin/super_admin.
    */
   const adminLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
       if (!cleanEmail || !password) {
-        setIsLoading(false);
-        return { success: false, error: 'Both email and password are required.' };
+        throw new Error('Both email and password are required.');
       }
 
-      if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password,
-        });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
 
-        if (error) {
-          setIsLoading(false);
-          return { success: false, error: error.message };
-        }
-
-        if (data.user) {
-          // Verify role in profiles table or user metadata
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .maybeSingle();
-
-          const role: UserRole = profile?.role || (data.user.user_metadata?.role as UserRole) || 'customer';
-
-          if (role !== 'admin' && role !== 'super_admin') {
-            await supabase.auth.signOut();
-            setIsLoading(false);
-            return {
-              success: false,
-              error: 'Access denied. Your account does not have administrative privileges.',
-            };
-          }
-
-          const adminProfile: UserProfile = {
-            id: data.user.id,
-            email: data.user.email || cleanEmail,
-            full_name: profile?.full_name || data.user.user_metadata?.full_name || 'RAYVEN Administrator',
-            phone: profile?.phone || data.user.user_metadata?.phone || '+8801700000000',
-            role,
-            avatar_url: profile?.avatar_url || data.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-            created_at: data.user.created_at || new Date().toISOString(),
-          };
-
-          setUser(adminProfile);
-          db.setCurrentUser(adminProfile);
-          setIsLoading(false);
-          return { success: true };
-        }
+      if (error) {
+        throw error;
       }
 
-      // Standalone validation when running in environment before Supabase keys are configured
-      // Validates against configured administrator credentials
-      if (cleanEmail === 'admin@rayven.com' || cleanEmail === 'nabilmubashir730@gmail.com' || cleanEmail.includes('admin')) {
-        if (password.length < 4) {
-          setIsLoading(false);
-          return { success: false, error: 'Password must be at least 4 characters long.' };
-        }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-        const adminProfile: UserProfile = {
-          id: 'adm-001',
-          email: cleanEmail,
-          full_name: cleanEmail.includes('nabil') ? 'Nabil Mubashir (Admin)' : 'RAYVEN Executive Admin',
-          phone: '+8801712345678',
-          role: 'super_admin',
-          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-          created_at: new Date().toISOString(),
-        };
-
-        setUser(adminProfile);
-        db.setCurrentUser(adminProfile);
-        setIsLoading(false);
-        return { success: true };
-      } else {
-        setIsLoading(false);
-        return {
-          success: false,
-          error: 'Invalid credentials. Administrative authorization failed.',
-        };
+      if (!session) {
+        throw new Error('Admin authentication failed: No active session established.');
       }
-    } catch (err: unknown) {
+
+      const userId = session.user.id;
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id,email,role')
+        .eq('id', userId)
+        .single();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        throw new Error('Admin profile does not exist in database.');
+      }
+
+      if (profile.role !== 'admin' && profile.role !== 'super_admin') {
+        await supabase.auth.signOut();
+        throw new Error('Access denied. Your account role is not admin or super_admin.');
+      }
+
+      const adminProfile: UserProfile = {
+        id: profile.id,
+        email: profile.email || session.user.email || cleanEmail,
+        full_name: session.user.user_metadata?.full_name || cleanEmail.split('@')[0],
+        phone: session.user.user_metadata?.phone || '',
+        role: profile.role as UserRole,
+        avatar_url: session.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+        created_at: session.user.created_at || new Date().toISOString(),
+      };
+
+      setUser(adminProfile);
+      db.setCurrentUser(adminProfile);
+      return { success: true };
+    } catch (err: any) {
+      setUser(null);
+      db.setCurrentUser(null);
+      return { success: false, error: err?.message || 'Admin authentication failed' };
+    } finally {
       setIsLoading(false);
-      return { success: false, error: err instanceof Error ? err.message : 'Admin authentication failed' };
     }
   };
 
