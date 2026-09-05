@@ -66,11 +66,19 @@ function generateSlug(text: string): string {
  * Normalizes a raw product row from Supabase into our frontend Product interface
  */
 export function formatProductFromDb(p: any): Product {
-  const images = Array.isArray(p.images)
+  const rawImages = Array.isArray(p.images)
     ? p.images
     : typeof p.images === 'string'
       ? (p.images.startsWith('[') ? JSON.parse(p.images) : [p.images])
       : [];
+
+  const versionTag = p.updated_at ? new Date(p.updated_at).getTime() : '';
+  const images = rawImages.map((img: string) => {
+    if (!img || typeof img !== 'string' || img.startsWith('data:') || !versionTag) return img;
+    if (img.includes(`v=${versionTag}`)) return img;
+    const separator = img.includes('?') ? '&' : '?';
+    return `${img}${separator}v=${versionTag}`;
+  });
   
   const details = Array.isArray(p.details)
     ? p.details
